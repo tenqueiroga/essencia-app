@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/app_colors.dart';
@@ -85,6 +88,139 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   void _openScanner() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            const Text('Identificar Perfume', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('Tire uma foto do frasco ou caixa e nossa IA identifica pra você',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13), textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            // Photo identify button (primary)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () { Navigator.pop(ctx); _identifyByPhoto(); },
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Tirar Foto'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: AppColors.gold,
+                  foregroundColor: AppColors.background,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Gallery option
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () { Navigator.pop(ctx); _identifyFromGallery(); },
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Escolher da Galeria'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.glassBorder),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Barcode option (secondary)
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () { Navigator.pop(ctx); _openBarcodeScanner(); },
+                icon: const Icon(Icons.qr_code_scanner, size: 18),
+                label: const Text('Escanear Código de Barras'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.textMuted),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _identifyByPhoto() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, imageQuality: 85);
+    if (image == null) return;
+    await _sendImageForIdentification(image);
+  }
+
+  Future<void> _identifyFromGallery() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
+    if (image == null) return;
+    await _sendImageForIdentification(image);
+  }
+
+  Future<void> _sendImageForIdentification(XFile image) async {
+    if (!mounted) return;
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: AppColors.gold),
+            SizedBox(height: 16),
+            Material(
+              color: Colors.transparent,
+              child: Text('Identificando perfume...',
+                style: TextStyle(color: Colors.white, fontSize: 14)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final bytes = await File(image.path).readAsBytes();
+      final base64 = base64Encode(bytes);
+
+      final response = await ApiClient().dio.post('/perfumes/identify', data: {
+        'image': base64,
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+
+      final data = response.data as Map<String, dynamic>;
+      if (data['identified'] == true && data['perfume'] != null) {
+        openPerfumeDetailSheet(context, data['perfume']);
+      } else {
+        final msg = data['message'] as String? ?? 'Perfume não identificado';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg),
+          backgroundColor: AppColors.elevated,
+          duration: const Duration(seconds: 4),
+        ));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Erro ao identificar. Tente novamente.'),
+        backgroundColor: AppColors.error,
+      ));
+    }
+  }
+
+  void _openBarcodeScanner() {
+    showModalBottomSheet(
+      context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -114,7 +250,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                           const Text('Câmera indisponível',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 8),
-                          Text('Verifique se a permissão de câmera está habilitada nas configurações do dispositivo.',
+                          Text('Verifique se a permissão de câmera está habilitada.',
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                             textAlign: TextAlign.center),
                         ],
@@ -134,7 +270,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Aponte a câmera para o código de barras do perfume',
+              child: Text('Aponte a câmera para o código de barras',
                 style: TextStyle(color: AppColors.textMuted, fontSize: 12), textAlign: TextAlign.center),
             ),
           ],
@@ -187,7 +323,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                                 setState(() { _searchResults = []; });
                               }),
                           IconButton(
-                            icon: const Icon(Icons.qr_code_scanner_rounded, size: 20, color: AppColors.gold),
+                            icon: const Icon(Icons.camera_alt_rounded, size: 20, color: AppColors.gold),
+                            tooltip: 'Identificar perfume',
                             onPressed: _openScanner,
                           ),
                         ],
