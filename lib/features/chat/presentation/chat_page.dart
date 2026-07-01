@@ -17,6 +17,7 @@ class _ChatPageState extends State<ChatPage> {
   final List<Map<String, String>> _messages = [];
   String? _conversationId;
   bool _isSending = false;
+  bool _isLoadingPerfume = false;
   List<Map<String, dynamic>> _conversations = [];
 
   final List<String> _suggestions = [
@@ -371,11 +372,18 @@ class _ChatPageState extends State<ChatPage> {
                 borderRadius: BorderRadius.circular(6),
                 border:
                     Border.all(color: AppColors.accent.withValues(alpha: 0.3))),
-            child: Text(perfumeName,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.accent)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(perfumeName,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.accent)),
+                const SizedBox(width: 3),
+                const Icon(Icons.open_in_new, size: 10, color: AppColors.accent),
+              ],
+            ),
           ),
         ),
       ));
@@ -394,17 +402,57 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _openPerfumeByName(BuildContext context, String name) async {
+    if (_isLoadingPerfume) return; // Prevent multiple taps
+
     final cleanName =
         name.replaceAll(RegExp(r'\s*\(.*?\)\s*'), '').trim();
+
+    setState(() => _isLoadingPerfume = true);
+
+    // Show loading snackbar
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Text('Buscando $cleanName...'),
+            ],
+          ),
+          duration: const Duration(seconds: 5),
+          backgroundColor: AppColors.elevated,
+        ),
+      );
+    }
 
     try {
       final response = await ApiClient().dio.get('/perfumes/search',
           queryParameters: {'q': cleanName});
       final results = response.data as List;
       if (results.isNotEmpty && context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         openPerfumeDetailSheet(context, results.first);
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Perfume não encontrado na base'),
+            duration: Duration(seconds: 2),
+            backgroundColor: AppColors.elevated,
+          ),
+        );
       }
-    } catch (_) {}
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingPerfume = false);
+    }
   }
 
   Future<void> _sendMessage() async {
