@@ -316,24 +316,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 
   void _showPerfumeDetail(dynamic perfume) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scroll) => _PerfumeDetailSheet(
-          perfume: perfume,
-          scrollController: scroll,
-          onAdd: () { _addToCollection(perfume); Navigator.pop(ctx); },
-        ),
-      ),
-    );
+    openPerfumeDetailSheet(context, perfume, onAdded: () {
+      ref.invalidate(_collectionIdsProvider);
+    });
   }
 
   Future<void> _addToCollection(dynamic perfume) async {
