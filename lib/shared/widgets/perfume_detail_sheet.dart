@@ -266,20 +266,26 @@ class _CollectionButton extends StatefulWidget {
 
 class _CollectionButtonState extends State<_CollectionButton> {
   bool _inCollection = false;
+  bool _inWishlist = false;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _checkCollection();
+    _checkStatus();
   }
 
-  Future<void> _checkCollection() async {
+  Future<void> _checkStatus() async {
     try {
-      final response = await ApiClient().dio.get('/collection/ids');
-      final ids = List<String>.from(response.data as List);
+      final responses = await Future.wait([
+        ApiClient().dio.get('/collection/ids'),
+        ApiClient().dio.get('/wishlist/ids'),
+      ]);
+      final collectionIds = List<String>.from(responses[0].data as List);
+      final wishlistIds = List<String>.from(responses[1].data as List);
       if (mounted) setState(() {
-        _inCollection = ids.contains(widget.perfumeId);
+        _inCollection = collectionIds.contains(widget.perfumeId);
+        _inWishlist = wishlistIds.contains(widget.perfumeId);
         _loading = false;
       });
     } catch (_) {
@@ -287,17 +293,31 @@ class _CollectionButtonState extends State<_CollectionButton> {
     }
   }
 
-  Future<void> _add() async {
+  Future<void> _addToCollection() async {
     try {
       await ApiClient().dio.post('/collection', data: {'perfume_id': widget.perfumeId});
       if (mounted) {
         setState(() => _inCollection = true);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${widget.perfumeName} adicionado!'),
+          content: Text('${widget.perfumeName} adicionado à coleção!'),
           backgroundColor: AppColors.accent));
       }
     } catch (_) {
-      if (mounted) setState(() => _inCollection = true); // probably already there
+      if (mounted) setState(() => _inCollection = true);
+    }
+  }
+
+  Future<void> _addToWishlist() async {
+    try {
+      await ApiClient().dio.post('/wishlist', data: {'perfume_id': widget.perfumeId});
+      if (mounted) {
+        setState(() => _inWishlist = true);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${widget.perfumeName} adicionado à lista de desejos!'),
+          backgroundColor: AppColors.gold));
+      }
+    } catch (_) {
+      if (mounted) setState(() => _inWishlist = true);
     }
   }
 
@@ -329,14 +349,55 @@ class _CollectionButtonState extends State<_CollectionButton> {
       );
     }
 
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _add,
-        icon: const Icon(Icons.add),
-        label: const Text('Adicionar à Coleção'),
-        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-      ),
+    return Column(
+      children: [
+        // Add to collection button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _addToCollection,
+            icon: const Icon(Icons.add),
+            label: const Text('Adicionar à Coleção'),
+            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Add to wishlist button
+        if (!_inWishlist)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _addToWishlist,
+              icon: const Icon(Icons.favorite_border, size: 18),
+              label: const Text('Lista de Desejos'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.gold,
+                side: BorderSide(color: AppColors.gold.withValues(alpha: 0.5)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.gold.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.gold.withValues(alpha: 0.3))),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.favorite, color: AppColors.gold, size: 16),
+                  SizedBox(width: 8),
+                  Text('Na lista de desejos', style: TextStyle(
+                    color: AppColors.gold, fontWeight: FontWeight.w600, fontSize: 13)),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

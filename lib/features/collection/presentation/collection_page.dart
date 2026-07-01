@@ -31,7 +31,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   String _proxyUrl(String? url) {
@@ -76,6 +76,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage>
               unselectedLabelColor: AppColors.textMuted,
               tabs: const [
                 Tab(text: 'Perfumes'),
+                Tab(text: 'Desejos'),
                 Tab(text: 'Estatísticas'),
               ],
             ),
@@ -84,6 +85,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage>
                 controller: _tabController,
                 children: [
                   _buildPerfumesList(collectionAsync),
+                  _buildWishlist(),
                   _buildStats(),
                 ],
               ),
@@ -121,6 +123,94 @@ class _CollectionPageState extends ConsumerState<CollectionPage>
             proxyUrl: _proxyUrl,
             onTap: () => openPerfumeDetailSheet(context, items[index]['perfume']),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWishlist() {
+    return FutureBuilder<List<dynamic>>(
+      future: ApiClient().dio.get('/wishlist').then((r) => (r.data['data'] ?? []) as List<dynamic>),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: AppColors.gold));
+        }
+        final items = snapshot.data ?? [];
+        if (items.isEmpty) {
+          return const EmptyState(
+            icon: Icons.favorite_border,
+            title: 'Lista de desejos vazia',
+            subtitle: 'Explore perfumes e adicione os que deseja comprar!',
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final perfume = item['perfume'] as Map<String, dynamic>?;
+            if (perfume == null) return const SizedBox.shrink();
+            final imageUrl = _proxyUrl(perfume['image_url'] as String?);
+            return GestureDetector(
+              onTap: () => openPerfumeDetailSheet(context, perfume),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+                ),
+                child: GlassCard(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          width: 54, height: 68,
+                          color: AppColors.surfaceLight,
+                          child: imageUrl.isNotEmpty
+                              ? Image.network(imageUrl, fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const Icon(Icons.favorite, color: AppColors.gold, size: 22))
+                              : const Icon(Icons.favorite, color: AppColors.gold, size: 22),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(perfume['name'] ?? '',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 2),
+                            Text(perfume['brand'] ?? '',
+                                style: const TextStyle(color: AppColors.gold, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      // Move to collection button
+                      IconButton(
+                        icon: const Icon(Icons.add_circle, color: AppColors.accent, size: 28),
+                        tooltip: 'Mover para coleção',
+                        onPressed: () async {
+                          try {
+                            await ApiClient().dio.post('/wishlist/${item['id']}/move-to-collection');
+                            if (mounted) {
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text('${perfume['name']} movido para a coleção!'),
+                                backgroundColor: AppColors.accent));
+                              ref.invalidate(collectionProvider);
+                            }
+                          } catch (_) {}
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
