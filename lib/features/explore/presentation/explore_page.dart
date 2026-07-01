@@ -102,6 +102,26 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             ),
             Expanded(
               child: MobileScanner(
+                errorBuilder: (context, error, child) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.camera_alt_outlined, color: AppColors.textMuted, size: 48),
+                          const SizedBox(height: 16),
+                          const Text('Câmera indisponível',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const SizedBox(height: 8),
+                          Text('Verifique se a permissão de câmera está habilitada nas configurações do dispositivo.',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            textAlign: TextAlign.center),
+                        ],
+                      ),
+                    ),
+                  );
+                },
                 onDetect: (capture) {
                   final barcodes = capture.barcodes;
                   if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
