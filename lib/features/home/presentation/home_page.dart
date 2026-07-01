@@ -239,6 +239,15 @@ class _WeatherCardState extends State<_WeatherCard> {
     return 'Frio pede fragrâncias envolventes e quentes';
   }
 
+  String _getSearchFamily(double? temp) {
+    if (temp == null) return 'Aromática';
+    if (temp >= 30) return 'Cítrica';
+    if (temp >= 25) return 'Fresca';
+    if (temp >= 20) return 'Floral';
+    if (temp >= 15) return 'Amadeirada';
+    return 'Oriental';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -265,8 +274,11 @@ class _WeatherCardState extends State<_WeatherCard> {
     final icon = _getWeatherIcon(condition);
     final family = _getRecommendedFamily(temp, condition);
     final reason = _getRecommendationReason(temp, condition);
+    final searchFamily = _getSearchFamily(temp);
 
-    return Container(
+    return GestureDetector(
+      onTap: () => context.go('/explore?family=$searchFamily'),
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -325,6 +337,7 @@ class _WeatherCardState extends State<_WeatherCard> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

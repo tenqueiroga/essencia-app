@@ -19,7 +19,10 @@ final appRouter = GoRouter(
       builder: (_, __, child) => MainShell(child: child),
       routes: [
         GoRoute(path: '/', builder: (_, __) => const HomePage()),
-        GoRoute(path: '/explore', builder: (_, __) => const ExplorePage()),
+        GoRoute(path: '/explore', builder: (_, state) {
+          final family = state.uri.queryParameters['family'];
+          return ExplorePage(initialFamily: family);
+        }),
         GoRoute(path: '/scan', builder: (_, __) => const ScanPage()),
         GoRoute(path: '/chat', builder: (_, __) => const ChatPage()),
         GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),

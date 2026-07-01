@@ -14,7 +14,8 @@ import '../../../shared/widgets/perfume_detail_sheet.dart';
 import '../../../shared/widgets/perfume_pyramid.dart';
 
 class ExplorePage extends ConsumerStatefulWidget {
-  const ExplorePage({super.key});
+  final String? initialFamily;
+  const ExplorePage({super.key, this.initialFamily});
 
   @override
   ConsumerState<ExplorePage> createState() => _ExplorePageState();
@@ -35,6 +36,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   void initState() {
     super.initState();
     _loadExploreData();
+    // If navigated with a family filter, search immediately
+    if (widget.initialFamily != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _searchController.text = widget.initialFamily!;
+        _smartSearch(widget.initialFamily!);
+      });
+    }
   }
 
   Future<void> _loadExploreData() async {
