@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -166,36 +167,60 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   Future<void> _sendImageForIdentification(XFile image) async {
     if (!mounted) return;
 
-    // Show loading
+    // Show loading dialog
+    final dialogContext = context;
+    bool dialogOpen = true;
     showDialog(
-      context: context,
+      context: dialogContext,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: AppColors.gold),
-            SizedBox(height: 16),
-            Material(
-              color: Colors.transparent,
-              child: Text('Identificando perfume...',
-                style: TextStyle(color: Colors.white, fontSize: 14)),
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppColors.gold),
+                SizedBox(height: 16),
+                Text('Identificando perfume...',
+                  style: TextStyle(color: Colors.white, fontSize: 14, decoration: TextDecoration.none)),
+                SizedBox(height: 4),
+                Text('Isso pode levar alguns segundos',
+                  style: TextStyle(color: Colors.white54, fontSize: 12, decoration: TextDecoration.none)),
+              ],
+            ),
+          ),
         ),
       ),
     );
 
+    void closeDialog() {
+      if (dialogOpen && mounted) {
+        dialogOpen = false;
+        Navigator.of(dialogContext, rootNavigator: true).pop();
+      }
+    }
+
     try {
       final bytes = await File(image.path).readAsBytes();
-      final base64 = base64Encode(bytes);
+      final base64Image = base64Encode(bytes);
 
-      final response = await ApiClient().dio.post('/perfumes/identify', data: {
-        'image': base64,
-      });
+      final response = await ApiClient().dio.post(
+        '/perfumes/identify',
+        data: {'image': base64Image},
+        options: Options(
+          sendTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60),
+        ),
+      );
 
+      closeDialog();
       if (!mounted) return;
-      Navigator.pop(context); // Close loading
 
       final data = response.data as Map<String, dynamic>;
       if (data['identified'] == true && data['perfume'] != null) {
@@ -209,12 +234,14 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         ));
       }
     } catch (e) {
+      closeDialog();
       if (!mounted) return;
-      Navigator.pop(context); // Close loading
-      // Check if it's a limit reached error (429)
+      
       String errorMsg = 'Erro ao identificar. Tente novamente.';
       if (e.toString().contains('429') || e.toString().contains('limit_reached')) {
         errorMsg = 'Você atingiu o limite de identificações deste mês (20). Aguarde o próximo mês.';
+      } else if (e.toString().contains('timeout') || e.toString().contains('Timeout')) {
+        errorMsg = 'A identificação demorou demais. Tente com uma foto mais nítida.';
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(errorMsg),
