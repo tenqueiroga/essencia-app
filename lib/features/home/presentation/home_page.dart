@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/services/location_service.dart';
 import '../../../shared/widgets/glass_card.dart';
 import '../../../shared/widgets/perfume_detail_sheet.dart';
 
@@ -86,6 +87,13 @@ class HomePage extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
+
+              // Weather card
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _WeatherCard(),
+              ),
+              const SizedBox(height: 20),
 
               // Suggestion
               Padding(
@@ -171,6 +179,154 @@ class _QuickTile extends StatelessWidget {
         Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
       ]),
     ));
+  }
+}
+
+
+class _WeatherCard extends StatefulWidget {
+  @override
+  State<_WeatherCard> createState() => _WeatherCardState();
+}
+
+class _WeatherCardState extends State<_WeatherCard> {
+  Map<String, dynamic>? _weather;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWeather();
+  }
+
+  Future<void> _loadWeather() async {
+    final weather = await LocationService.updateWeather();
+    if (mounted) {
+      setState(() {
+        _weather = weather;
+        _loading = false;
+      });
+    }
+  }
+
+  String _getWeatherIcon(String? condition) {
+    return switch (condition) {
+      'Clear' => '☀️',
+      'Cloudy' => '☁️',
+      'Fog' => '🌫️',
+      'Drizzle' => '🌦️',
+      'Rain' => '🌧️',
+      'Snow' => '❄️',
+      'Thunderstorm' => '⛈️',
+      _ => '🌤️',
+    };
+  }
+
+  String _getRecommendedFamily(double? temp, String? condition) {
+    if (temp == null) return 'Aromática';
+    if (temp >= 30) return 'Cítrica ou Aquática';
+    if (temp >= 25) return 'Fresca ou Cítrica';
+    if (temp >= 20) return 'Floral ou Aromática';
+    if (temp >= 15) return 'Amadeirada ou Oriental';
+    return 'Oriental ou Gourmand';
+  }
+
+  String _getRecommendationReason(double? temp, String? condition) {
+    if (temp == null) return 'Fragrâncias versáteis para qualquer momento';
+    if (temp >= 30) return 'Dia quente pede frescor e leveza';
+    if (temp >= 25) return 'Clima agradável para notas frescas';
+    if (temp >= 20) return 'Temperatura ideal para florais equilibrados';
+    if (temp >= 15) return 'Clima ameno combina com madeiras suaves';
+    return 'Frio pede fragrâncias envolventes e quentes';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        height: 70,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 16, height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
+          ),
+        ),
+      );
+    }
+
+    if (_weather == null) return const SizedBox.shrink();
+
+    final temp = (_weather!['temperature'] as num?)?.toDouble();
+    final condition = _weather!['condition'] as String?;
+    final description = _weather!['description'] as String? ?? '';
+    final icon = _getWeatherIcon(condition);
+    final family = _getRecommendedFamily(temp, condition);
+    final reason = _getRecommendationReason(temp, condition);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.gold.withValues(alpha: 0.08),
+            AppColors.surface,
+          ],
+        ),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          // Weather icon + temp
+          Column(
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 28)),
+              const SizedBox(height: 4),
+              Text(
+                temp != null ? '${temp.round()}°C' : '--',
+                style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  description,
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  reason,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '✦ Ideal: $family',
+                    style: const TextStyle(color: AppColors.gold, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
