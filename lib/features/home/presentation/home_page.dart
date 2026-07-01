@@ -196,7 +196,7 @@ class _SuggestionCardState extends State<_SuggestionCard> {
 
   String _proxyImg(String? url) {
     if (url == null || url.isEmpty) return '';
-    if (url.contains('fimgs.net')) return 'http://localhost:8000/api/image-proxy?url=${Uri.encodeComponent(url)}';
+    if (url.contains('fimgs.net')) return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
     return url;
   }
 
@@ -330,7 +330,7 @@ class _FeedSectionState extends State<_FeedSection> {
 
     String _proxyThumb(String? url) {
       if (url == null || url.isEmpty) return '';
-      return 'http://localhost:8000/api/image-proxy?url=${Uri.encodeComponent(url)}';
+      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
 
     return SizedBox(

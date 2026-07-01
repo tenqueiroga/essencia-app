@@ -53,7 +53,7 @@ class _FullPerfumeDetail extends StatelessWidget {
   String _proxyUrl(String? url) {
     if (url == null || url.isEmpty) return '';
     if (url.contains('fimgs.net')) {
-      return 'http://localhost:8000/api/image-proxy?url=${Uri.encodeComponent(url)}';
+      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
     return url;
   }

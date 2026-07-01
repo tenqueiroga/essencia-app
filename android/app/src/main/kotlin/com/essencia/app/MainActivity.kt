@@ -1,4 +1,4 @@
-package com.perfumecollection.frontend
+package com.essencia.app
 
 import io.flutter.embedding.android.FlutterActivity
 
