@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../shared/widgets/glass_card.dart';
@@ -19,14 +20,6 @@ class _ChatPageState extends State<ChatPage> {
   bool _isSending = false;
   bool _isLoadingPerfume = false;
   List<Map<String, dynamic>> _conversations = [];
-
-  final List<String> _suggestions = [
-    'Qual perfume usar hoje?',
-    'Sugira algo para o clima de agora',
-    'Perfume para um jantar romântico?',
-    'Tenho lacunas na coleção?',
-    'Qual perfume para o trabalho?',
-  ];
 
   @override
   void initState() {
@@ -108,7 +101,6 @@ class _ChatPageState extends State<ChatPage> {
             Expanded(
               child: _messages.isEmpty ? _buildEmptyChat() : _buildMessageList(),
             ),
-            if (_messages.isEmpty) _buildSuggestionChips(),
             _buildInputBar(),
           ],
         ),
@@ -195,25 +187,111 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildEmptyChat() {
-    return const Center(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.auto_awesome, size: 56, color: AppColors.gold),
-          SizedBox(height: 16),
-          Text('Olá! Sou a Essence AI 🌿',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          SizedBox(height: 8),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 40),
-            child: Text(
-              'Especialista em perfumaria!\nPosso sugerir o perfume ideal para o clima, ocasião ou estilo.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          const SizedBox(height: 40),
+          // Icon
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.elevated,
+              border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+            ),
+            child: const Icon(Icons.auto_awesome, color: AppColors.gold, size: 26),
+          ),
+          const SizedBox(height: 20),
+          // Title
+          const Text(
+            'SUA CONSULTORA\nDE FRAGRÂNCIAS',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+              height: 1.2,
             ),
           ),
+          const SizedBox(height: 12),
+          // Subtitle
+          const Text(
+            'Me conte a ocasião e eu escolho o perfume ideal.\nTambém posso sugerir novas fragrâncias para sua coleção! 🌸',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+          ),
+          const SizedBox(height: 28),
+          // Collection card (CTA)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.elevated,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'Para recomendações personalizadas, cadastre seus perfumes na Minha Coleção. Assim posso indicar a fragrância perfeita para cada momento! ✨',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: () => GoRouter.of(context).go('/collection'),
+                  icon: const Icon(Icons.auto_awesome, size: 16),
+                  label: const Text('Ir para Minha Coleção'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    backgroundColor: AppColors.surface,
+                    side: BorderSide(color: AppColors.textMuted.withValues(alpha: 0.4)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Suggestion chips as larger cards
+          _buildSuggestionCards(),
+          const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  Widget _buildSuggestionCards() {
+    final suggestions = [
+      {'emoji': '🌡️', 'text': 'Qual perfume uso hoje?'},
+      {'emoji': '🛍️', 'text': 'Quero comprar um novo!'},
+      {'emoji': '🌙', 'text': 'Sugira algo para um encontro'},
+      {'emoji': '💼', 'text': 'Perfume para o trabalho'},
+    ];
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: suggestions.map((s) => GestureDetector(
+        onTap: () {
+          _controller.text = s['text']!;
+          _sendMessage();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.elevated,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Text(
+            '${s['emoji']} ${s['text']}',
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+          ),
+        ),
+      )).toList(),
     );
   }
 
@@ -264,35 +342,6 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _buildSuggestionChips() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: SizedBox(
-        height: 36,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _suggestions.length,
-          itemBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ActionChip(
-                label: Text(_suggestions[index],
-                    style: const TextStyle(fontSize: 12)),
-                backgroundColor: AppColors.surfaceLight,
-                side: const BorderSide(color: AppColors.glassBorder),
-                onPressed: () {
-                  _controller.text = _suggestions[index];
-                  _sendMessage();
-                },
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -303,7 +352,7 @@ class _ChatPageState extends State<ChatPage> {
               controller: _controller,
               enabled: !_isSending,
               decoration: InputDecoration(
-                hintText: 'Pergunte sobre perfumes...',
+                hintText: 'Qual perfume você usará hoje?',
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none),
