@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
@@ -87,74 +87,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 
   void _openScanner() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 20),
-            const Text('Identificar Perfume', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text('Tire uma foto do frasco ou caixa e nossa IA identifica pra você',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13), textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            // Photo identify button (primary)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () { Navigator.pop(ctx); _identifyByPhoto(); },
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Tirar Foto'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: AppColors.gold,
-                  foregroundColor: AppColors.background,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Gallery option
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () { Navigator.pop(ctx); _identifyFromGallery(); },
-                icon: const Icon(Icons.photo_library_outlined),
-                label: const Text('Escolher da Galeria'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  foregroundColor: AppColors.textPrimary,
-                  side: const BorderSide(color: AppColors.glassBorder),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Barcode option (secondary)
-            SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                onPressed: () { Navigator.pop(ctx); _openBarcodeScanner(); },
-                icon: const Icon(Icons.qr_code_scanner, size: 18),
-                label: const Text('Escanear Código de Barras'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.textMuted),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _PerfumeCameraPage(
+        onImageCaptured: (image) => _sendImageForIdentification(image),
+        onGallery: () => _identifyFromGallery(),
       ),
-    );
-  }
-
-  Future<void> _identifyByPhoto() async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, imageQuality: 85);
-    if (image == null) return;
-    await _sendImageForIdentification(image);
+    ));
   }
 
   Future<void> _identifyFromGallery() async {
@@ -248,80 +186,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         backgroundColor: AppColors.error,
         duration: const Duration(seconds: 4),
       ));
-    }
-  }
-
-  void _openBarcodeScanner() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SizedBox(
-        height: MediaQuery.of(context).size.height * 0.7,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(children: [
-                const Text('Escanear Código', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const Spacer(),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-              ]),
-            ),
-            Expanded(
-              child: MobileScanner(
-                errorBuilder: (context, error, child) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.camera_alt_outlined, color: AppColors.textMuted, size: 48),
-                          const SizedBox(height: 16),
-                          const Text('Câmera indisponível',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          const SizedBox(height: 8),
-                          Text('Verifique se a permissão de câmera está habilitada.',
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                            textAlign: TextAlign.center),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                onDetect: (capture) {
-                  final barcodes = capture.barcodes;
-                  if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
-                    final code = barcodes.first.rawValue!;
-                    Navigator.pop(ctx);
-                    _handleBarcodeResult(code);
-                  }
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Aponte a câmera para o código de barras',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12), textAlign: TextAlign.center),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleBarcodeResult(String code) async {
-    try {
-      final response = await ApiClient().dio.get('/perfumes/barcode/$code');
-      if (mounted) _showPerfumeDetail(response.data);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Perfume não encontrado para código: $code'),
-          backgroundColor: AppColors.error));
-      }
     }
   }
 
@@ -1127,6 +991,228 @@ class _SimilarPerfumesPage extends StatelessWidget {
           ),
     );
   }
+}
+
+class _PerfumeCameraPage extends StatefulWidget {
+  final Future<void> Function(XFile image) onImageCaptured;
+  final VoidCallback onGallery;
+
+  const _PerfumeCameraPage({required this.onImageCaptured, required this.onGallery});
+
+  @override
+  State<_PerfumeCameraPage> createState() => _PerfumeCameraPageState();
+}
+
+class _PerfumeCameraPageState extends State<_PerfumeCameraPage> {
+  CameraController? _cameraController;
+  bool _isInitialized = false;
+  bool _isCapturing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) return;
+
+      _cameraController = CameraController(cameras.first, ResolutionPreset.high);
+      await _cameraController!.initialize();
+      if (mounted) setState(() => _isInitialized = true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não foi possível acessar a câmera'),
+          backgroundColor: AppColors.error));
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  Future<void> _capturePhoto() async {
+    if (_isCapturing || _cameraController == null) return;
+    setState(() => _isCapturing = true);
+
+    try {
+      final image = await _cameraController!.takePicture();
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onImageCaptured(image);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isCapturing = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Camera preview
+          if (_isInitialized && _cameraController != null)
+            Positioned.fill(
+              child: CameraPreview(_cameraController!),
+            )
+          else
+            const Center(child: CircularProgressIndicator(color: AppColors.gold)),
+
+          // Viewfinder overlay
+          Positioned.fill(
+            child: CustomPaint(painter: _ViewfinderPainter()),
+          ),
+
+          // Top bar
+          Positioned(
+            top: 0, left: 0, right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 24),
+                      tooltip: 'Galeria',
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.onGallery();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Instructions
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 70,
+            left: 0, right: 0,
+            child: const Column(
+              children: [
+                Text('Centralize o perfume',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center),
+                SizedBox(height: 6),
+                Text('Frasco ou caixa — garanta boa iluminação',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                  textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+
+          // Bottom controls
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 30),
+                child: Column(
+                  children: [
+                    // Capture button
+                    GestureDetector(
+                      onTap: _isCapturing ? null : _capturePhoto,
+                      child: Container(
+                        width: 72, height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 4),
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isCapturing ? Colors.grey : AppColors.gold,
+                          ),
+                          child: _isCapturing
+                            ? const Center(child: SizedBox(width: 24, height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
+                            : const Icon(Icons.camera_alt, color: Colors.white, size: 28),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewfinderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.5)
+      ..style = PaintingStyle.fill;
+
+    // Draw semi-transparent overlay with a clear rectangle in the center
+    final centerX = size.width / 2;
+    final centerY = size.height / 2 - 30;
+    final rectWidth = size.width * 0.65;
+    final rectHeight = size.height * 0.35;
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(centerX, centerY), width: rectWidth, height: rectHeight),
+      const Radius.circular(20),
+    );
+
+    // Draw full overlay
+    final path = Path()
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addRRect(rect)
+      ..fillType = PathFillType.evenOdd;
+    canvas.drawPath(path, paint);
+
+    // Draw border of the viewfinder
+    final borderPaint = Paint()
+      ..color = const Color(0xFFB8956A) // gold
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    canvas.drawRRect(rect, borderPaint);
+
+    // Draw corner accents
+    final cornerLength = 24.0;
+    final cornerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    final r = rect.outerRect;
+    // Top-left
+    canvas.drawLine(Offset(r.left + 20, r.top), Offset(r.left + 20 + cornerLength, r.top), cornerPaint);
+    canvas.drawLine(Offset(r.left + 20, r.top), Offset(r.left + 20, r.top + cornerLength), cornerPaint);
+    // Top-right
+    canvas.drawLine(Offset(r.right - 20, r.top), Offset(r.right - 20 - cornerLength, r.top), cornerPaint);
+    canvas.drawLine(Offset(r.right - 20, r.top), Offset(r.right - 20, r.top + cornerLength), cornerPaint);
+    // Bottom-left
+    canvas.drawLine(Offset(r.left + 20, r.bottom), Offset(r.left + 20 + cornerLength, r.bottom), cornerPaint);
+    canvas.drawLine(Offset(r.left + 20, r.bottom), Offset(r.left + 20, r.bottom - cornerLength), cornerPaint);
+    // Bottom-right
+    canvas.drawLine(Offset(r.right - 20, r.bottom), Offset(r.right - 20 - cornerLength, r.bottom), cornerPaint);
+    canvas.drawLine(Offset(r.right - 20, r.bottom), Offset(r.right - 20, r.bottom - cornerLength), cornerPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _DetailedVoteChart extends StatelessWidget {
