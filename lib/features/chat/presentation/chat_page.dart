@@ -265,7 +265,6 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildSuggestionCards() {
     final suggestions = [
-      {'emoji': '🌡️', 'text': 'Qual perfume uso hoje?'},
       {'emoji': '🛍️', 'text': 'Quero comprar um novo!'},
       {'emoji': '🌙', 'text': 'Sugira algo para um encontro'},
       {'emoji': '💼', 'text': 'Perfume para o trabalho'},
@@ -274,24 +273,31 @@ class _ChatPageState extends State<ChatPage> {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: suggestions.map((s) => GestureDetector(
-        onTap: () {
-          _controller.text = s['text']!;
+      children: [
+        // Dynamic weather chip
+        _WeatherChip(onTap: (text) {
+          _controller.text = text;
           _sendMessage();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.elevated,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
+        }),
+        ...suggestions.map((s) => GestureDetector(
+          onTap: () {
+            _controller.text = s['text']!;
+            _sendMessage();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.elevated,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              '${s['emoji']} ${s['text']}',
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+            ),
           ),
-          child: Text(
-            '${s['emoji']} ${s['text']}',
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-          ),
-        ),
-      )).toList(),
+        )),
+      ],
     );
   }
 
@@ -568,5 +574,65 @@ class _ChatPageState extends State<ChatPage> {
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+}
+
+class _WeatherChip extends StatefulWidget {
+  final void Function(String text) onTap;
+  const _WeatherChip({required this.onTap});
+
+  @override
+  State<_WeatherChip> createState() => _WeatherChipState();
+}
+
+class _WeatherChipState extends State<_WeatherChip> {
+  String? _chipText;
+  String _emoji = '🌡️';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWeather();
+  }
+
+  Future<void> _loadWeather() async {
+    try {
+      final response = await ApiClient().dio.get('/suggestions/seasonal');
+      final weather = response.data['weather'] as Map<String, dynamic>?;
+      if (weather != null && mounted) {
+        final temp = (weather['temperature'] as num).round();
+        String emoji;
+        String desc;
+        if (temp >= 30) { emoji = '☀️'; desc = 'calor de ${temp}°C'; }
+        else if (temp >= 25) { emoji = '🌤️'; desc = '${temp}°C agradáveis'; }
+        else if (temp >= 18) { emoji = '🌥️'; desc = 'clima ameno (${temp}°C)'; }
+        else { emoji = '🧥'; desc = 'frio de ${temp}°C'; }
+
+        setState(() {
+          _emoji = emoji;
+          _chipText = 'O que usar com $desc?';
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = _chipText ?? 'Qual perfume usar hoje?';
+    return GestureDetector(
+      onTap: () => widget.onTap(text),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.elevated,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+        ),
+        child: Text(
+          '$_emoji $text',
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+        ),
+      ),
+    );
   }
 }
