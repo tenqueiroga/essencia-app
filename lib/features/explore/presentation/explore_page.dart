@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/network/api_client.dart';
 import '../../../shared/widgets/glass_card.dart';
+import '../../../shared/widgets/perfume_detail_sheet.dart';
 import '../../../shared/widgets/perfume_pyramid.dart';
 
 class ExplorePage extends ConsumerStatefulWidget {
@@ -749,96 +750,42 @@ class _SimilarButton extends StatefulWidget {
 
 class _SimilarButtonState extends State<_SimilarButton> {
   bool _loading = false;
-  List<dynamic>? _results;
-  List<String> _collectionIds = [];
 
-  Future<void> _loadSimilar() async {
+  Future<void> _openSimilarPage() async {
     setState(() => _loading = true);
     try {
       final responses = await Future.wait([
         ApiClient().dio.get('/perfumes/${widget.perfumeId}/similar'),
         ApiClient().dio.get('/collection/ids'),
       ]);
-      setState(() {
-        _results = responses[0].data as List<dynamic>;
-        _collectionIds = List<String>.from(responses[1].data as List);
-        _loading = false;
-      });
+      final results = responses[0].data as List<dynamic>;
+      final collectionIds = List<String>.from(responses[1].data as List);
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      // Open full-screen page with results
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => _SimilarPerfumesPage(
+          perfumeName: widget.perfumeName,
+          results: results,
+          collectionIds: collectionIds,
+        ),
+      ));
     } catch (e) {
-      setState(() { _results = []; _loading = false; });
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Erro ao buscar similares'),
+          backgroundColor: AppColors.error));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_results != null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Similares', style: TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          if (_results!.isEmpty)
-            const Text('Nenhum similar encontrado na base',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 12))
-          else
-            ..._results!.take(6).map<Widget>((s) {
-              final inCollection = _collectionIds.contains(s['id']);
-              return GestureDetector(
-                onTap: () => _openPerfumeDetail(context, s),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: inCollection
-                      ? Border.all(color: AppColors.gold, width: 1.5)
-                      : null,
-                  ),
-                  child: GlassCard(
-                    padding: const EdgeInsets.all(8),
-                    borderRadius: 12,
-                    child: Row(children: [
-                      Container(
-                        width: 36, height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceLight,
-                          borderRadius: BorderRadius.circular(6)),
-                        child: const Icon(Icons.local_florist, color: AppColors.gold, size: 16),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(s['name'] ?? '', style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 12)),
-                          Text(s['brand'] ?? '', style: const TextStyle(
-                            color: AppColors.textSecondary, fontSize: 10)),
-                        ],
-                      )),
-                      if (inCollection)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.gold.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4)),
-                          child: const Text('Na coleção', style: TextStyle(
-                            color: AppColors.gold, fontSize: 9, fontWeight: FontWeight.bold)),
-                        )
-                      else if (s['olfactory_family']?['name'] != null)
-                        Text(s['olfactory_family']['name'],
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 9)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 16),
-                    ]),
-                  ),
-                ),
-              );
-            }),
-        ],
-      );
-    }
-
     return OutlinedButton.icon(
-      onPressed: _loading ? null : _loadSimilar,
+      onPressed: _loading ? null : _openSimilarPage,
       icon: _loading
         ? const SizedBox(width: 16, height: 16,
             child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold))
@@ -852,44 +799,142 @@ class _SimilarButtonState extends State<_SimilarButton> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
     );
   }
+}
 
-  void _openPerfumeDetail(BuildContext context, dynamic perfume) {
-    // Close current sheet and open explore detail
-    Navigator.pop(context);
-    // Find the explore page state to show detail — simplified: just navigate
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (_, scroll) => _PerfumeDetailSheet(
-          perfume: perfume,
-          scrollController: scroll,
-          onAdd: () async {
-            try {
-              await ApiClient().dio.post('/collection', data: {'perfume_id': perfume['id']});
-              if (context.mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('${perfume['name']} adicionado!'),
-                  backgroundColor: AppColors.gold));
-              }
-            } catch (_) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Já está na coleção'),
-                  backgroundColor: AppColors.error));
-              }
-            }
-          },
+class _SimilarPerfumesPage extends StatelessWidget {
+  final String perfumeName;
+  final List<dynamic> results;
+  final List<String> collectionIds;
+
+  const _SimilarPerfumesPage({
+    required this.perfumeName,
+    required this.results,
+    required this.collectionIds,
+  });
+
+  String _proxyUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.contains('fimgs.net')) {
+      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+    }
+    return url;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        title: Text('Similares a $perfumeName',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          overflow: TextOverflow.ellipsis),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
+      body: results.isEmpty
+        ? const Center(child: Text('Nenhum similar encontrado',
+            style: TextStyle(color: AppColors.textMuted)))
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: results.length,
+            itemBuilder: (context, index) {
+              final s = results[index];
+              final inCollection = collectionIds.contains(s['id']);
+              final imageUrl = _proxyUrl(s['image_url'] as String?);
+              final family = s['olfactory_family']?['name'] ?? '';
+              final rating = s['rating'];
+              final gender = s['gender'] as String?;
+
+              return GestureDetector(
+                onTap: () => openPerfumeDetailSheet(context, s),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: inCollection ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.gold, width: 1.5),
+                  ) : null,
+                  child: GlassCard(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        // Image
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: 56, height: 72,
+                            color: AppColors.surfaceLight,
+                            child: imageUrl.isNotEmpty
+                              ? Image.network(imageUrl, fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const Center(
+                                    child: Icon(Icons.local_florist, color: AppColors.gold, size: 20)))
+                              : const Center(
+                                  child: Icon(Icons.local_florist, color: AppColors.gold, size: 20)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(s['name'] ?? '',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 3),
+                              Text(s['brand'] ?? '',
+                                style: const TextStyle(color: AppColors.gold, fontSize: 12)),
+                              const SizedBox(height: 6),
+                              Row(children: [
+                                if (family.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.gold.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4)),
+                                    child: Text(family,
+                                      style: const TextStyle(color: AppColors.gold, fontSize: 10)),
+                                  ),
+                                if (gender != null) ...[
+                                  const SizedBox(width: 6),
+                                  Text(gender == 'Feminino' ? '♀' : gender == 'Masculino' ? '♂' : '⚥',
+                                    style: const TextStyle(fontSize: 12)),
+                                ],
+                                if (rating != null) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.star, color: AppColors.gold, size: 12),
+                                  Text(' ${double.tryParse(rating.toString())?.toStringAsFixed(1) ?? rating}',
+                                    style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                                ],
+                              ]),
+                            ],
+                          ),
+                        ),
+                        // Status
+                        Column(
+                          children: [
+                            if (inCollection)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.gold.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6)),
+                                child: const Text('Na coleção',
+                                  style: TextStyle(color: AppColors.gold, fontSize: 9, fontWeight: FontWeight.bold)),
+                              ),
+                            const SizedBox(height: 4),
+                            const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 18),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
     );
   }
 }
