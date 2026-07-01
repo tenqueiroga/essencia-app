@@ -211,9 +211,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context); // Close loading
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Erro ao identificar. Tente novamente.'),
+      // Check if it's a limit reached error (429)
+      String errorMsg = 'Erro ao identificar. Tente novamente.';
+      if (e.toString().contains('429') || e.toString().contains('limit_reached')) {
+        errorMsg = 'Você atingiu o limite de identificações deste mês (20). Aguarde o próximo mês.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(errorMsg),
         backgroundColor: AppColors.error,
+        duration: const Duration(seconds: 4),
       ));
     }
   }
