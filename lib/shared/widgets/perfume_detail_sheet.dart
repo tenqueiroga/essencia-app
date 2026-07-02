@@ -358,7 +358,14 @@ class _PriceSection extends StatelessWidget {
       final priceVal = rawPrice is num ? rawPrice.toDouble() : double.tryParse(rawPrice?.toString() ?? '') ?? 0;
       return {...p, '_parsed_price': priceVal};
     }).where((p) => (p['_parsed_price'] as double) > 0).toList();
-    parsedPrices.sort((a, b) => (a['_parsed_price'] as double).compareTo(b['_parsed_price'] as double));
+    parsedPrices.sort((a, b) {
+      // Época always first
+      final aIsEpoca = a['source'] == 'epoca' ? 0 : 1;
+      final bIsEpoca = b['source'] == 'epoca' ? 0 : 1;
+      if (aIsEpoca != bIsEpoca) return aIsEpoca.compareTo(bIsEpoca);
+      // Then by price
+      return (a['_parsed_price'] as double).compareTo(b['_parsed_price'] as double);
+    });
 
     if (parsedPrices.isEmpty) {
       if (averagePrice == null) return const SizedBox.shrink();
