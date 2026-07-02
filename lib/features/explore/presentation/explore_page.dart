@@ -86,9 +86,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       if (mounted) setState(() {
         _searchResults = response.data as List<dynamic>;
         _isSearching = false;
+        _hasSearched = true;
       });
     } catch (_) {
-      if (mounted) setState(() => _isSearching = false);
+      if (mounted) setState(() { _isSearching = false; _hasSearched = true; });
     }
   }
 
@@ -270,10 +271,37 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     color: AppColors.gold))
                 : _searchResults.isNotEmpty
                   ? _buildSearchResults()
-                  : _buildExploreContent(),
+                  : _hasSearched
+                    ? _buildNotFound()
+                    : _buildExploreContent(),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNotFound() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          const Icon(Icons.search_off, color: AppColors.textMuted, size: 48),
+          const SizedBox(height: 12),
+          const Text('Nenhum perfume encontrado',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 4),
+          Text('Tente buscar por outro nome ou marca',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: 32),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Align(alignment: Alignment.centerLeft,
+              child: Text('DESTAQUES', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1.5))),
+          ),
+          const SizedBox(height: 12),
+          _buildExploreContent(),
+        ],
       ),
     );
   }

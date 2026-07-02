@@ -128,6 +128,15 @@ class HomePage extends ConsumerWidget {
               ),
               const SizedBox(height: 28),
 
+              // Feed do influencer
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: const _SectionLabel('ÚLTIMOS REVIEWS'),
+              ),
+              const SizedBox(height: 12),
+              _FeedSection(),
+              const SizedBox(height: 28),
+
               // Popular perfumes with prices
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -144,15 +153,6 @@ class HomePage extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               _AffordableSection(),
-              const SizedBox(height: 28),
-
-              // Feed do influencer
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: const _SectionLabel('ÚLTIMOS REVIEWS'),
-              ),
-              const SizedBox(height: 12),
-              _FeedSection(),
               const SizedBox(height: 80),
             ],
           ),
@@ -546,8 +546,15 @@ class _PopularSectionState extends State<_PopularSection> {
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                     child: Container(
-                      height: 110, width: double.infinity,
-                      color: AppColors.elevated,
+                      height: 120, width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [AppColors.elevated, AppColors.surface],
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(12),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
@@ -634,8 +641,15 @@ class _AffordableSectionState extends State<_AffordableSection> {
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                     child: Container(
-                      height: 110, width: double.infinity,
-                      color: AppColors.elevated,
+                      height: 120, width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [AppColors.elevated, AppColors.surface],
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(12),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
