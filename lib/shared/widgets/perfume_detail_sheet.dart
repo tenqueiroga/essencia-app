@@ -135,34 +135,10 @@ class _FullPerfumeDetail extends StatelessWidget {
           // Dupe tag
           if (perfume['is_dupe_of'] != null) ...[
             const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () {
-                final original = perfume['is_dupe_of']['perfume'] as Map<String, dynamic>?;
-                if (original != null && context.mounted) {
-                  Navigator.of(context).pop();
-                  Future.delayed(const Duration(milliseconds: 300), () {
-                    if (context.mounted) {
-                      openPerfumeDetailSheet(context, original);
-                    }
-                  });
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.content_copy, size: 14, color: AppColors.accent),
-                  const SizedBox(width: 6),
-                  Text('Dupe de ${perfume['is_dupe_of']['original_name'] ?? ''} (${perfume['is_dupe_of']['original_brand'] ?? ''})',
-                    style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.open_in_new, size: 10, color: AppColors.accent),
-                ]),
-              ),
+            _DupeTag(
+              originalName: perfume['is_dupe_of']['original_name'] as String? ?? '',
+              originalBrand: perfume['is_dupe_of']['original_brand'] as String? ?? '',
+              originalPerfume: perfume['is_dupe_of']['perfume'] as Map<String, dynamic>?,
             ),
           ],
 
@@ -445,6 +421,48 @@ class _PriceSection extends StatelessWidget {
 
   void _openUrl(String url) {
     launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+}
+
+class _DupeTag extends StatelessWidget {
+  final String originalName;
+  final String originalBrand;
+  final Map<String, dynamic>? originalPerfume;
+
+  const _DupeTag({required this.originalName, required this.originalBrand, this.originalPerfume});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (originalPerfume == null || originalPerfume!['id'] == null) return;
+        // Pop the current sheet and open original
+        final overlayContext = Navigator.of(context).overlay?.context;
+        Navigator.of(context).pop();
+        if (overlayContext != null) {
+          Future.delayed(const Duration(milliseconds: 350), () {
+            openPerfumeDetailSheet(overlayContext, originalPerfume!);
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.content_copy, size: 14, color: AppColors.accent),
+          const SizedBox(width: 6),
+          Flexible(child: Text('Dupe de $originalName ($originalBrand)',
+            style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w600),
+            overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 4),
+          const Icon(Icons.open_in_new, size: 10, color: AppColors.accent),
+        ]),
+      ),
+    );
   }
 }
 
