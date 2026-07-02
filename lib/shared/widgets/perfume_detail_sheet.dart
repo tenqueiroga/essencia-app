@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/network/api_client.dart';
 import 'glass_card.dart';
@@ -130,17 +131,9 @@ class _FullPerfumeDetail extends StatelessWidget {
           ]),
 
           // Price
-          if (price != null) ...[
+          if (price != null || (perfume['prices'] as List?)?.isNotEmpty == true) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.green.withValues(alpha: 0.3))),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.sell_outlined, color: Colors.green, size: 16),
-                const SizedBox(width: 6),
-                Text('R\$ ${double.tryParse(price.toString())?.toStringAsFixed(2) ?? price}', style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
-              ]),
-            ),
+            _PriceSection(perfume: perfume),
           ],
           const SizedBox(height: 28),
 
@@ -257,6 +250,117 @@ class _FullPerfumeDetail extends StatelessWidget {
   }
 }
 
+
+class _PriceSection extends StatelessWidget {
+  final Map<String, dynamic> perfume;
+  const _PriceSection({required this.perfume});
+
+  String _sourceLabel(String source) {
+    return switch (source) {
+      'mercadolivre' => 'Mercado Livre',
+      'epoca' => 'Época Cosméticos',
+      'belezanaweb' => 'Beleza na Web',
+      'sephora' => 'Sephora',
+      _ => source,
+    };
+  }
+
+  String _sourceIcon(String source) {
+    return switch (source) {
+      'mercadolivre' => '🟡',
+      'epoca' => '🟣',
+      'sephora' => '⚫',
+      'belezanaweb' => '🔵',
+      _ => '🏷️',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prices = (perfume['prices'] as List?)
+        ?.map((p) => Map<String, dynamic>.from(p as Map))
+        .toList() ?? [];
+    final averagePrice = perfume['average_price'];
+
+    // If no detailed prices, show average
+    if (prices.isEmpty && averagePrice != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.green.withValues(alpha: 0.3))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.sell_outlined, color: Colors.green, size: 16),
+          const SizedBox(width: 6),
+          Text('R\$ ${double.tryParse(averagePrice.toString())?.toStringAsFixed(2) ?? averagePrice}',
+            style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+        ]),
+      );
+    }
+
+    // Show all prices from different sources
+    prices.sort((a, b) => ((a['price'] as num?) ?? 999999).compareTo((b['price'] as num?) ?? 999999));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('ONDE COMPRAR', style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        const SizedBox(height: 8),
+        ...prices.map((p) {
+          final price = (p['price'] as num?)?.toDouble();
+          final source = p['source'] as String? ?? '';
+          final url = p['url'] as String?;
+          final isLowest = prices.indexOf(p) == 0 && prices.length > 1;
+
+          return GestureDetector(
+            onTap: url != null ? () => _openUrl(url) : null,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isLowest ? Colors.green.withValues(alpha: 0.08) : AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isLowest ? Colors.green.withValues(alpha: 0.3) : AppColors.glassBorder),
+              ),
+              child: Row(children: [
+                Text(_sourceIcon(source), style: const TextStyle(fontSize: 14)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_sourceLabel(source),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                      if (isLowest)
+                        const Text('Menor preço', style: TextStyle(fontSize: 9, color: Colors.green)),
+                    ],
+                  ),
+                ),
+                Text(
+                  price != null ? 'R\$ ${price.toStringAsFixed(2)}' : '—',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isLowest ? Colors.green : AppColors.textPrimary),
+                ),
+                if (url != null) ...[
+                  const SizedBox(width: 6),
+                  const Icon(Icons.open_in_new, size: 12, color: AppColors.textMuted),
+                ],
+              ]),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  void _openUrl(String url) {
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+}
 
 class _CollectionButton extends StatefulWidget {
   final String perfumeId;
