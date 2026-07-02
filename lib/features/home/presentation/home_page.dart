@@ -547,18 +547,10 @@ class _PopularSectionState extends State<_PopularSection> {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                     child: Container(
                       height: 120, width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [AppColors.elevated, AppColors.surface],
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(12),
+                      color: const Color(0xFF1A1616),
+                      padding: const EdgeInsets.all(16),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
-                            color: const Color(0xFFE8E0D8),
-                            colorBlendMode: BlendMode.multiply,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
                         : const Icon(Icons.local_florist, color: AppColors.gold),
                     ),
@@ -644,18 +636,10 @@ class _AffordableSectionState extends State<_AffordableSection> {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                     child: Container(
                       height: 120, width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [AppColors.elevated, AppColors.surface],
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(12),
+                      color: const Color(0xFF1A1616),
+                      padding: const EdgeInsets.all(16),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
-                            color: const Color(0xFFE8E0D8),
-                            colorBlendMode: BlendMode.multiply,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
                         : const Icon(Icons.local_florist, color: AppColors.gold),
                     ),
