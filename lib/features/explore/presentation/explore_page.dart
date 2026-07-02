@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -98,12 +98,24 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 
   void _openScanner() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => _PerfumeCameraPage(
-        onImageCaptured: (image) => _sendImageForIdentification(image),
-        onGallery: () => _identifyFromGallery(),
-      ),
-    ));
+    if (kIsWeb) {
+      // On web, use image_picker with camera source (opens native browser camera)
+      _identifyByWebCamera();
+    } else {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => _PerfumeCameraPage(
+          onImageCaptured: (image) => _sendImageForIdentification(image),
+          onGallery: () => _identifyFromGallery(),
+        ),
+      ));
+    }
+  }
+
+  Future<void> _identifyByWebCamera() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.camera, maxWidth: 1024, imageQuality: 85);
+    if (image == null) return;
+    await _sendImageForIdentification(image);
   }
 
   Future<void> _identifyFromGallery() async {
@@ -156,7 +168,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     }
 
     try {
-      final bytes = await File(image.path).readAsBytes();
+      final bytes = await image.readAsBytes();
       final base64Image = base64Encode(bytes);
 
       final response = await ApiClient().dio.post(
