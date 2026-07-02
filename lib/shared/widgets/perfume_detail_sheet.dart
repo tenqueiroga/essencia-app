@@ -9,15 +9,17 @@ import 'perfume_pyramid.dart';
 /// Pass a perfume map (from API) with at least 'id'.
 /// If data is incomplete, fetches full data from API.
 Future<void> openPerfumeDetailSheet(BuildContext context, dynamic perfume, {VoidCallback? onAdded}) async {
-  // If we don't have full data, fetch it
+  // Always fetch full data including prices
   Map<String, dynamic> p;
-  if (perfume is Map<String, dynamic> && perfume.containsKey('top_notes') && perfume['top_notes'] != null) {
-    p = perfume;
-  } else {
-    try {
-      final response = await ApiClient().dio.get('/perfumes/${perfume['id']}');
-      p = response.data as Map<String, dynamic>;
-    } catch (_) {
+  try {
+    final id = perfume is Map ? perfume['id'] : perfume.id;
+    final response = await ApiClient().dio.get('/perfumes/$id');
+    p = response.data as Map<String, dynamic>;
+  } catch (_) {
+    // Fallback to passed data
+    if (perfume is Map<String, dynamic>) {
+      p = perfume;
+    } else {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Erro ao carregar perfume'), backgroundColor: AppColors.error));
