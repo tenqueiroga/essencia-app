@@ -200,6 +200,7 @@ class _FullPerfumeDetail extends StatelessWidget {
               originalName: perfume['is_dupe_of']['original_name'] as String? ?? '',
               originalBrand: perfume['is_dupe_of']['original_brand'] as String? ?? '',
               originalPerfume: perfume['is_dupe_of']['perfume'] as Map<String, dynamic>?,
+              accuracyScore: perfume['is_dupe_of']['accuracy_score'] as int?,
             ),
           ],
 
@@ -489,15 +490,15 @@ class _DupeTag extends StatelessWidget {
   final String originalName;
   final String originalBrand;
   final Map<String, dynamic>? originalPerfume;
+  final int? accuracyScore;
 
-  const _DupeTag({required this.originalName, required this.originalBrand, this.originalPerfume});
+  const _DupeTag({required this.originalName, required this.originalBrand, this.originalPerfume, this.accuracyScore});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
         if (originalPerfume == null || originalPerfume!['id'] == null) return;
-        // Pop the current sheet and open original
         final overlayContext = Navigator.of(context).overlay?.context;
         Navigator.of(context).pop();
         if (overlayContext != null) {
@@ -519,6 +520,14 @@ class _DupeTag extends StatelessWidget {
           Flexible(child: Text('Dupe de $originalName ($originalBrand)',
             style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w600),
             overflow: TextOverflow.ellipsis)),
+          if (accuracyScore != null && accuracyScore! > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
+              child: Text('${accuracyScore}/10', style: const TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+          ],
           const SizedBox(width: 4),
           const Icon(Icons.open_in_new, size: 10, color: AppColors.accent),
         ]),
