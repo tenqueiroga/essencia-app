@@ -15,7 +15,8 @@ import '../../../shared/widgets/perfume_pyramid.dart';
 
 class ExplorePage extends ConsumerStatefulWidget {
   final String? initialFamily;
-  const ExplorePage({super.key, this.initialFamily});
+  final bool openScan;
+  const ExplorePage({super.key, this.initialFamily, this.openScan = false});
 
   @override
   ConsumerState<ExplorePage> createState() => _ExplorePageState();
@@ -36,12 +37,14 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   void initState() {
     super.initState();
     _loadExploreData();
-    // If navigated with a family filter, search immediately
     if (widget.initialFamily != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _searchController.text = widget.initialFamily!;
         _smartSearch(widget.initialFamily!);
       });
+    }
+    if (widget.openScan) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openScanner());
     }
   }
 
@@ -169,8 +172,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       if (!mounted) return;
 
       final data = response.data as Map<String, dynamic>;
-      if (data['identified'] == true && data['perfume'] != null) {
-        openPerfumeDetailSheet(context, data['perfume']);
+      if (data['identified'] == true) {
+        if (data['multiple'] == true && data['perfumes'] != null) {
+          // Multiple matches — show list for user to pick
+          final perfumes = List<Map<String, dynamic>>.from(
+            (data['perfumes'] as List).map((p) => Map<String, dynamic>.from(p)));
+          _showMultipleResults(perfumes, data['ai_name'] as String? ?? '');
+        } else if (data['perfume'] != null) {
+          openPerfumeDetailSheet(context, data['perfume']);
+        }
       } else {
         final msg = data['message'] as String? ?? 'Perfume não identificado';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -312,6 +322,79 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         )),
         const SizedBox(height: 80),
       ],
+    );
+  }
+
+  void _showMultipleResults(List<Map<String, dynamic>> perfumes, String aiName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (_, scroll) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(children: [
+                Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(height: 12),
+                Text('Encontramos ${perfumes.length} resultados para "$aiName"',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 4),
+                const Text('Selecione a versão correta:', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              ]),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: scroll,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: perfumes.length,
+                itemBuilder: (_, i) {
+                  final p = perfumes[i];
+                  final imageUrl = (p['image_url'] as String?)?.contains('fimgs.net') == true
+                    ? 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(p['image_url'])}'
+                    : (p['image_url'] ?? '');
+                  return GestureDetector(
+                    onTap: () { Navigator.pop(ctx); openPerfumeDetailSheet(context, p); },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.elevated, borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.glassBorder)),
+                      child: Row(children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            width: 44, height: 56, color: AppColors.surfaceLight,
+                            child: imageUrl.isNotEmpty
+                              ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold, size: 16))
+                              : const Icon(Icons.local_florist, color: AppColors.gold, size: 16),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text(p['brand'] ?? '', style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                          if (p['concentration'] != null || p['year_launched'] != null)
+                            Text([if (p['concentration'] != null) p['concentration'], if (p['year_launched'] != null) '${p['year_launched']}'].join(' • '),
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                        ])),
+                        const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 18),
+                      ]),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

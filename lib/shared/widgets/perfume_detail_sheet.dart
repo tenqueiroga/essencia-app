@@ -211,6 +211,10 @@ class _FullPerfumeDetail extends StatelessWidget {
 
           // Add to collection (check if already in collection)
           _CollectionButton(perfumeId: perfume['id'] as String, perfumeName: perfume['name'] as String? ?? ''),
+          const SizedBox(height: 12),
+
+          // Similar perfumes button
+          _SimilarButtonShared(perfumeId: perfume['id'] as String, perfumeName: perfume['name'] as String? ?? ''),
           const SizedBox(height: 16),
         ],
       ),
@@ -398,6 +402,143 @@ class _CollectionButtonState extends State<_CollectionButton> {
             ),
           ),
       ],
+    );
+  }
+}
+
+
+class _SimilarButtonShared extends StatefulWidget {
+  final String perfumeId;
+  final String perfumeName;
+
+  const _SimilarButtonShared({required this.perfumeId, required this.perfumeName});
+
+  @override
+  State<_SimilarButtonShared> createState() => _SimilarButtonSharedState();
+}
+
+class _SimilarButtonSharedState extends State<_SimilarButtonShared> {
+  bool _loading = false;
+
+  Future<void> _openSimilar() async {
+    setState(() => _loading = true);
+    try {
+      final responses = await Future.wait([
+        ApiClient().dio.get('/perfumes/${widget.perfumeId}/similar'),
+        ApiClient().dio.get('/collection/ids'),
+      ]);
+      final results = responses[0].data as List<dynamic>;
+      final collectionIds = List<String>.from(responses[1].data as List);
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => _SimilarPage(
+          perfumeName: widget.perfumeName,
+          results: results,
+          collectionIds: collectionIds,
+        ),
+      ));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Erro ao buscar similares'), backgroundColor: AppColors.error));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _loading ? null : _openSimilar,
+        icon: _loading
+          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold))
+          : const Icon(Icons.compare_arrows),
+        label: Text(_loading ? 'Buscando...' : 'Ver Similares'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textPrimary,
+          side: const BorderSide(color: AppColors.glassBorder),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      ),
+    );
+  }
+}
+
+class _SimilarPage extends StatelessWidget {
+  final String perfumeName;
+  final List<dynamic> results;
+  final List<String> collectionIds;
+
+  const _SimilarPage({required this.perfumeName, required this.results, required this.collectionIds});
+
+  String _proxyUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.contains('fimgs.net')) return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+    return url;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        title: Text('Similares a $perfumeName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+      ),
+      body: results.isEmpty
+        ? const Center(child: Text('Nenhum similar encontrado', style: TextStyle(color: AppColors.textMuted)))
+        : ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: results.length,
+            itemBuilder: (context, index) {
+              final s = results[index];
+              final inCollection = collectionIds.contains(s['id']);
+              final imageUrl = _proxyUrl(s['image_url'] as String?);
+
+              return GestureDetector(
+                onTap: () => openPerfumeDetailSheet(context, s),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: inCollection ? Border.all(color: AppColors.gold, width: 1.5) : Border.all(color: AppColors.glassBorder),
+                  ),
+                  child: Row(children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: 50, height: 64, color: AppColors.surfaceLight,
+                        child: imageUrl.isNotEmpty
+                          ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold, size: 18))
+                          : const Icon(Icons.local_florist, color: AppColors.gold, size: 18),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(s['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(s['brand'] ?? '', style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                      if (s['olfactory_family']?['name'] != null)
+                        Text(s['olfactory_family']['name'], style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                    ])),
+                    if (inCollection)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(color: AppColors.gold.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
+                        child: const Text('Na coleção', style: TextStyle(color: AppColors.gold, fontSize: 9, fontWeight: FontWeight.bold)),
+                      ),
+                    const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 16),
+                  ]),
+                ),
+              );
+            },
+          ),
     );
   }
 }

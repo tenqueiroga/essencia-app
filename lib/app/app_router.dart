@@ -21,7 +21,8 @@ final appRouter = GoRouter(
         GoRoute(path: '/', builder: (_, __) => const HomePage()),
         GoRoute(path: '/explore', builder: (_, state) {
           final family = state.uri.queryParameters['family'];
-          return ExplorePage(initialFamily: family);
+          final scan = state.uri.queryParameters['scan'] == 'true';
+          return ExplorePage(initialFamily: family, openScan: scan);
         }),
         GoRoute(path: '/scan', builder: (_, __) => const ScanPage()),
         GoRoute(path: '/chat', builder: (_, __) => const ChatPage()),

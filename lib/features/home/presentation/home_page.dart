@@ -120,8 +120,8 @@ class HomePage extends ConsumerWidget {
                       _QuickTile(icon: Icons.book_outlined, label: 'Diário',
                         color: AppColors.success, onTap: () => context.go('/journal')),
                       const SizedBox(width: 10),
-                      _QuickTile(icon: Icons.qr_code_scanner_rounded, label: 'Scan',
-                        color: const Color(0xFF9B7AE8), onTap: () => context.go('/explore')),
+                      _QuickTile(icon: Icons.camera_alt_rounded, label: 'Identificar',
+                        color: const Color(0xFF9B7AE8), onTap: () => context.go('/explore?scan=true')),
                     ]),
                   ],
                 ),
@@ -499,6 +499,11 @@ class _FeedSectionState extends State<_FeedSection> {
 
     String _proxyThumb(String? url) {
       if (url == null || url.isEmpty) return '';
+      // Local storage path
+      if (url.startsWith('/storage/')) {
+        return 'https://essencia.laravel.cloud$url';
+      }
+      // Instagram CDN or other external URLs — proxy them
       return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
 
