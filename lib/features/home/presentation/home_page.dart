@@ -128,6 +128,24 @@ class HomePage extends ConsumerWidget {
               ),
               const SizedBox(height: 28),
 
+              // Popular perfumes with prices
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: const _SectionLabel('POPULARES DA SEMANA'),
+              ),
+              const SizedBox(height: 12),
+              _PopularSection(),
+              const SizedBox(height: 28),
+
+              // Affordable perfumes
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: const _SectionLabel('TOP ATÉ R\$300'),
+              ),
+              const SizedBox(height: 12),
+              _AffordableSection(),
+              const SizedBox(height: 28),
+
               // Feed do influencer
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -468,6 +486,189 @@ class _SuggestionCardState extends State<_SuggestionCard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _PopularSection extends StatefulWidget {
+  @override
+  State<_PopularSection> createState() => _PopularSectionState();
+}
+
+class _PopularSectionState extends State<_PopularSection> {
+  List<dynamic> _items = [];
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    try {
+      final response = await ApiClient().dio.get('/perfumes/popular');
+      if (mounted) setState(() => _items = response.data as List<dynamic>);
+    } catch (_) {}
+  }
+
+  String _proxyImg(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.contains('fimgs.net')) return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+    return url;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_items.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 210,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: _items.length,
+        itemBuilder: (_, i) {
+          final p = _items[i];
+          final img = _proxyImg(p['image_url'] as String?);
+          final price = p['average_price'];
+          return GestureDetector(
+            onTap: () => openPerfumeDetailSheet(context, p),
+            child: Container(
+              width: 140,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                    child: Container(
+                      height: 110, width: double.infinity,
+                      color: AppColors.elevated,
+                      child: img.isNotEmpty
+                        ? Image.network(img, fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
+                        : const Icon(Icons.local_florist, color: AppColors.gold),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p['name'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(p['brand'] ?? '', style: const TextStyle(fontSize: 10, color: AppColors.gold),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 4),
+                        if (price != null)
+                          Text('R\$ ${double.tryParse(price.toString())?.toStringAsFixed(0) ?? price}',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+
+class _AffordableSection extends StatefulWidget {
+  @override
+  State<_AffordableSection> createState() => _AffordableSectionState();
+}
+
+class _AffordableSectionState extends State<_AffordableSection> {
+  List<dynamic> _items = [];
+
+  @override
+  void initState() { super.initState(); _load(); }
+
+  Future<void> _load() async {
+    try {
+      final response = await ApiClient().dio.get('/perfumes/affordable');
+      if (mounted) setState(() => _items = response.data as List<dynamic>);
+    } catch (_) {}
+  }
+
+  String _proxyImg(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.contains('fimgs.net')) return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+    return url;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_items.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      height: 210,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: _items.length,
+        itemBuilder: (_, i) {
+          final p = _items[i];
+          final img = _proxyImg(p['image_url'] as String?);
+          final price = p['average_price'];
+          return GestureDetector(
+            onTap: () => openPerfumeDetailSheet(context, p),
+            child: Container(
+              width: 140,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                    child: Container(
+                      height: 110, width: double.infinity,
+                      color: AppColors.elevated,
+                      child: img.isNotEmpty
+                        ? Image.network(img, fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
+                        : const Icon(Icons.local_florist, color: AppColors.gold),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p['name'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(p['brand'] ?? '', style: const TextStyle(fontSize: 10, color: AppColors.gold),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 4),
+                        if (price != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4)),
+                            child: Text('R\$ ${double.tryParse(price.toString())?.toStringAsFixed(0) ?? price}',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
