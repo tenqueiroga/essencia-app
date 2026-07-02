@@ -9,27 +9,50 @@ import 'perfume_pyramid.dart';
 /// Pass a perfume map (from API) with at least 'id'.
 /// If data is incomplete, fetches full data from API.
 Future<void> openPerfumeDetailSheet(BuildContext context, dynamic perfume, {VoidCallback? onAdded}) async {
-  // Always fetch full data including prices
   Map<String, dynamic> p;
+  if (perfume is Map<String, dynamic>) {
+    p = perfume;
+  } else {
+    p = {'id': perfume['id']};
+  }
+
+  // If we have basic data, show immediately and fetch full data in background
+  if (p.containsKey('name') && p['name'] != null) {
+    if (!context.mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.88,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scroll) => _FullPerfumeDetailAsync(
+          initialData: p,
+          scrollController: scroll,
+          onAdded: onAdded,
+        ),
+      ),
+    );
+    return;
+  }
+
+  // No data at all — must fetch first
   try {
-    final id = perfume is Map ? perfume['id'] : perfume.id;
-    final response = await ApiClient().dio.get('/perfumes/$id');
+    final response = await ApiClient().dio.get('/perfumes/${p['id']}');
     p = response.data as Map<String, dynamic>;
   } catch (_) {
-    // Fallback to passed data
-    if (perfume is Map<String, dynamic>) {
-      p = perfume;
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Erro ao carregar perfume'), backgroundColor: AppColors.error));
-      }
-      return;
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Erro ao carregar perfume'), backgroundColor: AppColors.error));
     }
+    return;
   }
 
   if (!context.mounted) return;
-
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -44,6 +67,44 @@ Future<void> openPerfumeDetailSheet(BuildContext context, dynamic perfume, {Void
       builder: (_, scroll) => _FullPerfumeDetail(perfume: p, scrollController: scroll, onAdded: onAdded),
     ),
   );
+}
+
+/// Async version: shows initial data immediately, fetches full data in background
+class _FullPerfumeDetailAsync extends StatefulWidget {
+  final Map<String, dynamic> initialData;
+  final ScrollController scrollController;
+  final VoidCallback? onAdded;
+
+  const _FullPerfumeDetailAsync({required this.initialData, required this.scrollController, this.onAdded});
+
+  @override
+  State<_FullPerfumeDetailAsync> createState() => _FullPerfumeDetailAsyncState();
+}
+
+class _FullPerfumeDetailAsyncState extends State<_FullPerfumeDetailAsync> {
+  late Map<String, dynamic> _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _data = widget.initialData;
+    _fetchFullData();
+  }
+
+  Future<void> _fetchFullData() async {
+    if (_data['id'] == null) return;
+    try {
+      final response = await ApiClient().dio.get('/perfumes/${_data['id']}');
+      if (mounted) {
+        setState(() => _data = response.data as Map<String, dynamic>);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _FullPerfumeDetail(perfume: _data, scrollController: widget.scrollController, onAdded: widget.onAdded);
+  }
 }
 
 class _FullPerfumeDetail extends StatelessWidget {
