@@ -19,22 +19,27 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     _OnboardingData(
       icon: Icons.local_florist,
       title: 'Sua Coleção',
-      subtitle: 'Cadastre seus perfumes, avalie e organize por ocasião, estação e mais.',
+      subtitle: 'Cadastre seus perfumes, organize por ocasião e estação. Crie sua lista de desejos.',
     ),
     _OnboardingData(
       icon: Icons.auto_awesome,
-      title: 'Chatbot Inteligente',
-      subtitle: 'Pergunte qual perfume usar hoje. A IA conhece sua coleção e o clima.',
+      title: 'Consultora IA',
+      subtitle: 'Pergunte qual perfume usar. A IA conhece sua coleção, o clima, e sugere alternativas com preço.',
+    ),
+    _OnboardingData(
+      icon: Icons.camera_alt,
+      title: 'Identificação por Foto',
+      subtitle: 'Tire uma foto do frasco ou caixa e nossa IA identifica o perfume na hora.',
+    ),
+    _OnboardingData(
+      icon: Icons.content_copy,
+      title: 'Dupes & Preços',
+      subtitle: 'Descubra clones mais baratos dos seus perfumes favoritos e compare preços de várias lojas.',
     ),
     _OnboardingData(
       icon: Icons.compare_arrows,
-      title: 'Descubra Similares',
-      subtitle: 'Encontre perfumes parecidos com os que você ama, com preços acessíveis.',
-    ),
-    _OnboardingData(
-      icon: Icons.book_outlined,
-      title: 'Diário Olfativo',
-      subtitle: 'Registre qual perfume usou em cada dia e acompanhe suas estatísticas.',
+      title: 'Similares & Descoberta',
+      subtitle: 'Encontre perfumes com perfil aromático parecido. Explore novas fragrâncias todo dia.',
     ),
   ];
 
