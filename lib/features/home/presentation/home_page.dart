@@ -547,8 +547,8 @@ class _PopularSectionState extends State<_PopularSection> {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                     child: Container(
                       height: 120, width: double.infinity,
-                      color: const Color(0xFF1A1616),
-                      padding: const EdgeInsets.all(16),
+                      color: Colors.white,
+                      padding: const EdgeInsets.all(10),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
@@ -636,8 +636,8 @@ class _AffordableSectionState extends State<_AffordableSection> {
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                     child: Container(
                       height: 120, width: double.infinity,
-                      color: const Color(0xFF1A1616),
-                      padding: const EdgeInsets.all(16),
+                      color: Colors.white,
+                      padding: const EdgeInsets.all(10),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
