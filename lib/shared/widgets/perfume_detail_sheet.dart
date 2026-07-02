@@ -138,9 +138,13 @@ class _FullPerfumeDetail extends StatelessWidget {
             GestureDetector(
               onTap: () {
                 final original = perfume['is_dupe_of']['perfume'] as Map<String, dynamic>?;
-                if (original != null) {
-                  Navigator.pop(context);
-                  openPerfumeDetailSheet(context, original);
+                if (original != null && context.mounted) {
+                  Navigator.of(context).pop();
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    if (context.mounted) {
+                      openPerfumeDetailSheet(context, original);
+                    }
+                  });
                 }
               },
               child: Container(
@@ -236,7 +240,11 @@ class _FullPerfumeDetail extends StatelessWidget {
 
           // Add to collection (check if already in collection)
           _CollectionButton(perfumeId: perfume['id'] as String, perfumeName: perfume['name'] as String? ?? ''),
-          const SizedBox(height: 12),
+
+          const SizedBox(height: 16),
+          // Divider
+          Container(height: 1, color: AppColors.glassBorder),
+          const SizedBox(height: 16),
 
           // Similar perfumes button
           _SimilarButtonShared(perfumeId: perfume['id'] as String, perfumeName: perfume['name'] as String? ?? ''),
@@ -769,12 +777,12 @@ class _DupesButtonState extends State<_DupesButton> {
       child: OutlinedButton.icon(
         onPressed: _loading ? null : _openDupes,
         icon: _loading
-          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold))
           : const Icon(Icons.content_copy, size: 16),
         label: Text(_loading ? 'Buscando...' : 'Ver Dupes (clones)'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.accent,
-          side: BorderSide(color: AppColors.accent.withValues(alpha: 0.3)),
+          foregroundColor: AppColors.textPrimary,
+          side: const BorderSide(color: AppColors.glassBorder),
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
       ),
