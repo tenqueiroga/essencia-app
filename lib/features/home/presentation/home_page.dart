@@ -557,6 +557,8 @@ class _PopularSectionState extends State<_PopularSection> {
                       padding: const EdgeInsets.all(12),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
+                            color: const Color(0xFFE8E0D8),
+                            colorBlendMode: BlendMode.multiply,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
                         : const Icon(Icons.local_florist, color: AppColors.gold),
                     ),
@@ -652,6 +654,8 @@ class _AffordableSectionState extends State<_AffordableSection> {
                       padding: const EdgeInsets.all(12),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
+                            color: const Color(0xFFE8E0D8),
+                            colorBlendMode: BlendMode.multiply,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
                         : const Icon(Icons.local_florist, color: AppColors.gold),
                     ),
