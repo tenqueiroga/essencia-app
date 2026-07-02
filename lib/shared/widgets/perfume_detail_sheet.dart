@@ -132,6 +132,36 @@ class _FullPerfumeDetail extends StatelessWidget {
             if (collectionName != null && collectionName.isNotEmpty) _chip('Linha: $collectionName', color: Colors.purple),
           ]),
 
+          // Dupe tag
+          if (perfume['is_dupe_of'] != null) ...[
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () {
+                final original = perfume['is_dupe_of']['perfume'] as Map<String, dynamic>?;
+                if (original != null) {
+                  Navigator.pop(context);
+                  openPerfumeDetailSheet(context, original);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.content_copy, size: 14, color: AppColors.accent),
+                  const SizedBox(width: 6),
+                  Text('Dupe de ${perfume['is_dupe_of']['original_name'] ?? ''} (${perfume['is_dupe_of']['original_brand'] ?? ''})',
+                    style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.open_in_new, size: 10, color: AppColors.accent),
+                ]),
+              ),
+            ),
+          ],
+
           // Price
           if (price != null || (perfume['prices'] as List?)?.isNotEmpty == true) ...[
             const SizedBox(height: 12),
@@ -210,6 +240,10 @@ class _FullPerfumeDetail extends StatelessWidget {
 
           // Similar perfumes button
           _SimilarButtonShared(perfumeId: perfume['id'] as String, perfumeName: perfume['name'] as String? ?? ''),
+          const SizedBox(height: 8),
+
+          // Dupes button
+          _DupesButton(perfumeId: perfume['id'] as String, perfumeName: perfume['name'] as String? ?? ''),
           const SizedBox(height: 16),
         ],
       ),
@@ -680,6 +714,178 @@ class _SimilarPage extends StatelessWidget {
               );
             },
           ),
+    );
+  }
+}
+
+
+class _DupesButton extends StatefulWidget {
+  final String perfumeId;
+  final String perfumeName;
+
+  const _DupesButton({required this.perfumeId, required this.perfumeName});
+
+  @override
+  State<_DupesButton> createState() => _DupesButtonState();
+}
+
+class _DupesButtonState extends State<_DupesButton> {
+  bool _loading = false;
+
+  Future<void> _openDupes() async {
+    setState(() => _loading = true);
+    try {
+      final response = await ApiClient().dio.get('/perfumes/${widget.perfumeId}/dupes');
+      final data = response.data as Map<String, dynamic>;
+      final dupes = (data['dupes'] as List?) ?? [];
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      if (dupes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sem dupes conhecidos para este perfume'),
+          backgroundColor: AppColors.elevated));
+        return;
+      }
+
+      // Open dupes page
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => _DupesPage(perfumeName: widget.perfumeName, dupes: dupes),
+      ));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sem dupes disponíveis'), backgroundColor: AppColors.elevated));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _loading ? null : _openDupes,
+        icon: _loading
+          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
+          : const Icon(Icons.content_copy, size: 16),
+        label: Text(_loading ? 'Buscando...' : 'Ver Dupes (clones)'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.accent,
+          side: BorderSide(color: AppColors.accent.withValues(alpha: 0.3)),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      ),
+    );
+  }
+}
+
+class _DupesPage extends StatelessWidget {
+  final String perfumeName;
+  final List<dynamic> dupes;
+
+  const _DupesPage({required this.perfumeName, required this.dupes});
+
+  String _proxyUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.contains('fimgs.net')) return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+    return url;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        title: Text('Dupes de $perfumeName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: dupes.length,
+        itemBuilder: (context, index) {
+          final d = dupes[index];
+          final perfume = d['perfume'] as Map<String, dynamic>?;
+          final dupeName = d['dupe_name'] as String? ?? '';
+          final dupeBrand = d['dupe_brand'] as String? ?? '';
+          final accuracy = d['accuracy_score'];
+          final source = d['source'] as String? ?? '';
+
+          if (perfume == null) {
+            // Not in our base — show text only
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surface, borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.glassBorder)),
+              child: Row(children: [
+                Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(color: AppColors.elevated, borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.local_florist, color: AppColors.textMuted, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(dupeName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(dupeBrand, style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                  Text('Fonte: $source', style: const TextStyle(color: AppColors.textMuted, fontSize: 9)),
+                ])),
+                if (accuracy != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text('$accuracy/10', style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+              ]),
+            );
+          }
+
+          final imageUrl = _proxyUrl(perfume['image_url'] as String?);
+          return GestureDetector(
+            onTap: () => openPerfumeDetailSheet(context, perfume),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surface, borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.accent.withValues(alpha: 0.2))),
+              child: Row(children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 50, height: 64, color: Colors.white,
+                    padding: const EdgeInsets.all(4),
+                    child: imageUrl.isNotEmpty
+                      ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold, size: 18))
+                      : const Icon(Icons.local_florist, color: AppColors.gold, size: 18),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(perfume['name'] ?? dupeName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(perfume['brand'] ?? dupeBrand, style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                  if (perfume['average_price'] != null)
+                    Text('R\$ ${double.tryParse(perfume['average_price'].toString())?.toStringAsFixed(0)}',
+                      style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                ])),
+                Column(children: [
+                  if (accuracy != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text('$accuracy/10', style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  const SizedBox(height: 4),
+                  const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 16),
+                ]),
+              ]),
+            ),
+          );
+        },
+      ),
     );
   }
 }
