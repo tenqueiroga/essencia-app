@@ -529,6 +529,7 @@ class _DupesSectionState extends State<_DupesSection> {
           final item = _items[i];
           final dupe = item['dupe'] as Map<String, dynamic>?;
           final originalName = item['original_name'] as String? ?? '';
+          final accuracy = item['accuracy_score'];
           if (dupe == null) return const SizedBox.shrink();
           final img = _proxyImg(dupe['image_url'] as String?);
           final price = dupe['average_price'];
@@ -568,11 +569,21 @@ class _DupesSectionState extends State<_DupesSection> {
                         Text(dupe['brand'] ?? '', style: const TextStyle(fontSize: 9, color: AppColors.gold),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 3),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(3)),
-                          child: Text('Dupe de $originalName', style: const TextStyle(fontSize: 8, color: AppColors.accent), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
+                        Row(children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(3)),
+                            child: Text('Dupe de $originalName', style: const TextStyle(fontSize: 8, color: AppColors.accent), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                          if (accuracy != null) ...[
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                              decoration: BoxDecoration(color: AppColors.gold.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(3)),
+                              child: Text('$accuracy/10', style: const TextStyle(fontSize: 8, color: AppColors.gold, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ]),
                         if (price != null) ...[
                           const SizedBox(height: 2),
                           Text('R\$ ${double.tryParse(price.toString())?.toStringAsFixed(0) ?? price}',
