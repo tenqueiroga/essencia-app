@@ -137,13 +137,13 @@ class HomePage extends ConsumerWidget {
               _FeedSection(),
               const SizedBox(height: 28),
 
-              // Popular perfumes with prices
+              // Dupes highlight (replaces populares)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: const _SectionLabel('POPULARES DA SEMANA'),
+                child: const _SectionLabel('DUPES — MESMA ESSÊNCIA, MENOR PREÇO'),
               ),
               const SizedBox(height: 12),
-              _PopularSection(),
+              _DupesSection(),
               const SizedBox(height: 28),
 
               // Affordable perfumes
@@ -492,12 +492,12 @@ class _SuggestionCardState extends State<_SuggestionCard> {
 }
 
 
-class _PopularSection extends StatefulWidget {
+class _DupesSection extends StatefulWidget {
   @override
-  State<_PopularSection> createState() => _PopularSectionState();
+  State<_DupesSection> createState() => _DupesSectionState();
 }
 
-class _PopularSectionState extends State<_PopularSection> {
+class _DupesSectionState extends State<_DupesSection> {
   List<dynamic> _items = [];
 
   @override
@@ -505,7 +505,7 @@ class _PopularSectionState extends State<_PopularSection> {
 
   Future<void> _load() async {
     try {
-      final response = await ApiClient().dio.get('/perfumes/popular');
+      final response = await ApiClient().dio.get('/perfumes/dupes-highlight');
       if (mounted) setState(() => _items = response.data as List<dynamic>);
     } catch (_) {}
   }
@@ -520,35 +520,38 @@ class _PopularSectionState extends State<_PopularSection> {
   Widget build(BuildContext context) {
     if (_items.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 210,
+      height: 200,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: _items.length,
         itemBuilder: (_, i) {
-          final p = _items[i];
-          final img = _proxyImg(p['image_url'] as String?);
-          final price = p['average_price'];
+          final item = _items[i];
+          final dupe = item['dupe'] as Map<String, dynamic>?;
+          final originalName = item['original_name'] as String? ?? '';
+          if (dupe == null) return const SizedBox.shrink();
+          final img = _proxyImg(dupe['image_url'] as String?);
+          final price = dupe['average_price'];
+
           return GestureDetector(
-            onTap: () => openPerfumeDetailSheet(context, p),
+            onTap: () => openPerfumeDetailSheet(context, dupe),
             child: Container(
-              width: 140,
+              width: 150,
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Image
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                     child: Container(
-                      height: 120, width: double.infinity,
+                      height: 95, width: double.infinity,
                       color: Colors.white,
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       child: img.isNotEmpty
                         ? Image.network(img, fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
@@ -556,18 +559,25 @@ class _PopularSectionState extends State<_PopularSection> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(7),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(p['name'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        Text(dupe['name'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text(p['brand'] ?? '', style: const TextStyle(fontSize: 10, color: AppColors.gold),
+                        Text(dupe['brand'] ?? '', style: const TextStyle(fontSize: 9, color: AppColors.gold),
                           maxLines: 1, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 4),
-                        if (price != null)
+                        const SizedBox(height: 3),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(3)),
+                          child: Text('Dupe de $originalName', style: const TextStyle(fontSize: 8, color: AppColors.accent), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                        if (price != null) ...[
+                          const SizedBox(height: 2),
                           Text('R\$ ${double.tryParse(price.toString())?.toStringAsFixed(0) ?? price}',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green)),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
+                        ],
                       ],
                     ),
                   ),
