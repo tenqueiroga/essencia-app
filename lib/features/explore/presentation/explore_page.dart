@@ -31,6 +31,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   final _searchController = TextEditingController();
   List<dynamic> _searchResults = [];
   bool _isSearching = false;
+  bool _hasSearched = false;
   Map<String, dynamic>? _exploreData;
 
   @override
@@ -57,7 +58,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
   Future<void> _smartSearch(String query) async {
     if (query.length < 2) {
-      setState(() { _searchResults = []; _isSearching = false; });
+      setState(() { _searchResults = []; _isSearching = false; _hasSearched = false; });
       return;
     }
 

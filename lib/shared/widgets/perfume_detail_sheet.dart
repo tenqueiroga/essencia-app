@@ -279,13 +279,22 @@ class _PriceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final prices = (perfume['prices'] as List?)
-        ?.map((p) => Map<String, dynamic>.from(p as Map))
-        .toList() ?? [];
+    final pricesList = perfume['prices'];
+    List<Map<String, dynamic>> prices = [];
+    try {
+      prices = (pricesList as List?)
+          ?.map((p) => Map<String, dynamic>.from(p as Map))
+          .toList() ?? [];
+    } catch (_) {
+      prices = [];
+    }
     final averagePrice = perfume['average_price'];
 
-    // If no detailed prices, show average
-    if (prices.isEmpty && averagePrice != null) {
+    // If no detailed prices, show average only
+    if (prices.isEmpty) {
+      if (averagePrice == null) return const SizedBox.shrink();
+      final priceVal = double.tryParse(averagePrice.toString());
+      if (priceVal == null || priceVal <= 0) return const SizedBox.shrink();
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
@@ -295,28 +304,53 @@ class _PriceSection extends StatelessWidget {
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.sell_outlined, color: Colors.green, size: 16),
           const SizedBox(width: 6),
-          Text('R\$ ${double.tryParse(averagePrice.toString())?.toStringAsFixed(2) ?? averagePrice}',
+          Text('R\$ ${priceVal.toStringAsFixed(2)}',
             style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
         ]),
       );
     }
 
-    // Show all prices from different sources
-    prices.sort((a, b) => ((a['price'] as num?) ?? 999999).compareTo((b['price'] as num?) ?? 999999));
+    // Parse and sort prices
+    final parsedPrices = prices.map((p) {
+      final rawPrice = p['price'];
+      final priceVal = rawPrice is num ? rawPrice.toDouble() : double.tryParse(rawPrice?.toString() ?? '') ?? 0;
+      return {...p, '_parsed_price': priceVal};
+    }).where((p) => (p['_parsed_price'] as double) > 0).toList();
+    parsedPrices.sort((a, b) => (a['_parsed_price'] as double).compareTo(b['_parsed_price'] as double));
+
+    if (parsedPrices.isEmpty) {
+      if (averagePrice == null) return const SizedBox.shrink();
+      final priceVal = double.tryParse(averagePrice.toString());
+      if (priceVal == null || priceVal <= 0) return const SizedBox.shrink();
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.green.withValues(alpha: 0.3))),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.sell_outlined, color: Colors.green, size: 16),
+          const SizedBox(width: 6),
+          Text('R\$ ${priceVal.toStringAsFixed(2)}',
+            style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+        ]),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         const Text('ONDE COMPRAR', style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.bold, letterSpacing: 2)),
         const SizedBox(height: 8),
-        ...prices.map((p) {
-          final price = (p['price'] as num?)?.toDouble();
+        ...parsedPrices.map((p) {
+          final price = p['_parsed_price'] as double;
           final source = p['source'] as String? ?? '';
           final url = p['url'] as String?;
-          final isLowest = prices.indexOf(p) == 0 && prices.length > 1;
+          final isLowest = parsedPrices.indexOf(p) == 0 && parsedPrices.length > 1;
 
           return GestureDetector(
-            onTap: url != null ? () => _openUrl(url) : null,
+            onTap: url != null && url.isNotEmpty ? () => _openUrl(url) : null,
             child: Container(
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -332,6 +366,7 @@ class _PriceSection extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(_sourceLabel(source),
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
@@ -341,13 +376,13 @@ class _PriceSection extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  price != null ? 'R\$ ${price.toStringAsFixed(2)}' : '—',
+                  'R\$ ${price.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: isLowest ? Colors.green : AppColors.textPrimary),
                 ),
-                if (url != null) ...[
+                if (url != null && url.isNotEmpty) ...[
                   const SizedBox(width: 6),
                   const Icon(Icons.open_in_new, size: 12, color: AppColors.textMuted),
                 ],
