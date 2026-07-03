@@ -19,7 +19,22 @@ class MainShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     final currentIndex = _tabs.indexWhere((t) => t['path'] == location);
+    final isDesktop = MediaQuery.of(context).size.width > 768;
 
+    if (isDesktop) {
+      return _DesktopLayout(child: child, currentIndex: currentIndex);
+    }
+    return _MobileLayout(child: child, currentIndex: currentIndex);
+  }
+}
+
+class _MobileLayout extends StatelessWidget {
+  final Widget child;
+  final int currentIndex;
+  const _MobileLayout({required this.child, required this.currentIndex});
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: child,
       bottomNavigationBar: Container(
@@ -32,10 +47,10 @@ class MainShell extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_tabs.length, (i) {
+              children: List.generate(MainShell._tabs.length, (i) {
                 final isActive = currentIndex == i;
                 return GestureDetector(
-                  onTap: () => context.go(_tabs[i]['path'] as String),
+                  onTap: () => context.go(MainShell._tabs[i]['path'] as String),
                   behavior: HitTestBehavior.opaque,
                   child: SizedBox(
                     width: 56,
@@ -49,14 +64,14 @@ class MainShell extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
-                            (isActive ? _tabs[i]['activeIcon'] : _tabs[i]['icon']) as IconData,
+                            (isActive ? MainShell._tabs[i]['activeIcon'] : MainShell._tabs[i]['icon']) as IconData,
                             color: isActive ? AppColors.accent : AppColors.textMuted,
                             size: 20,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          _tabs[i]['label'] as String,
+                          MainShell._tabs[i]['label'] as String,
                           style: TextStyle(
                             fontSize: 9,
                             fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
@@ -71,6 +86,94 @@ class MainShell extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DesktopLayout extends StatelessWidget {
+  final Widget child;
+  final int currentIndex;
+  const _DesktopLayout({required this.child, required this.currentIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Row(
+        children: [
+          // Side navigation
+          Container(
+            width: 220,
+            color: AppColors.surface,
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                // Logo
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(colors: [AppColors.accent, AppColors.gold]),
+                      ),
+                      child: const Center(child: Text('E', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.background))),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('ESSÊNCIA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 1)),
+                  ]),
+                ),
+                const SizedBox(height: 40),
+                // Nav items
+                ...List.generate(MainShell._tabs.length, (i) {
+                  final isActive = currentIndex == i;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    child: Material(
+                      color: isActive ? AppColors.accent.withValues(alpha: 0.1) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => context.go(MainShell._tabs[i]['path'] as String),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(children: [
+                            Icon(
+                              (isActive ? MainShell._tabs[i]['activeIcon'] : MainShell._tabs[i]['icon']) as IconData,
+                              color: isActive ? AppColors.accent : AppColors.textMuted,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              MainShell._tabs[i]['label'] as String,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                                color: isActive ? AppColors.accent : AppColors.textSecondary,
+                              ),
+                            ),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          // Divider
+          Container(width: 1, color: AppColors.border),
+          // Content area (constrained width)
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: child,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
