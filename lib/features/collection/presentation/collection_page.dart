@@ -118,11 +118,42 @@ class _CollectionPageState extends ConsumerState<CollectionPage>
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: items.length,
-          itemBuilder: (context, index) => _CollectionItem(
-            item: items[index],
-            proxyUrl: _proxyUrl,
-            onTap: () => openPerfumeDetailSheet(context, items[index]['perfume']),
-          ),
+          itemBuilder: (context, index) {
+            final itemId = items[index]['id'] as String;
+            return Dismissible(
+              key: Key(itemId),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.delete_outline, color: AppColors.error),
+              ),
+              confirmDismiss: (_) async {
+                return await showDialog(context: context, builder: (ctx) => AlertDialog(
+                  backgroundColor: AppColors.surface,
+                  title: const Text('Remover da coleção?'),
+                  content: const Text('O perfume será removido da sua coleção.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remover', style: TextStyle(color: AppColors.error))),
+                  ],
+                ));
+              },
+              onDismissed: (_) async {
+                try {
+                  await ApiClient().dio.delete('/collection/$itemId');
+                  ref.invalidate(collectionProvider);
+                } catch (_) {}
+              },
+              child: _CollectionItem(
+                item: items[index],
+                proxyUrl: _proxyUrl,
+                onTap: () => openPerfumeDetailSheet(context, items[index]['perfume']),
+              ),
+            );
+          },
         );
       },
     );
@@ -151,7 +182,23 @@ class _CollectionPageState extends ConsumerState<CollectionPage>
             final perfume = item['perfume'] as Map<String, dynamic>?;
             if (perfume == null) return const SizedBox.shrink();
             final imageUrl = _proxyUrl(perfume['image_url'] as String?);
-            return GestureDetector(
+            final itemId = item['id'] as String;
+            return Dismissible(
+              key: Key(itemId),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(16)),
+                child: const Icon(Icons.delete_outline, color: AppColors.error),
+              ),
+              onDismissed: (_) async {
+                try {
+                  await ApiClient().dio.delete('/wishlist/$itemId');
+                } catch (_) {}
+              },
+              child: GestureDetector(
               onTap: () => openPerfumeDetailSheet(context, perfume),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -209,6 +256,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage>
                   ),
                 ),
               ),
+            ),  // Dismissible
             );
           },
         );
