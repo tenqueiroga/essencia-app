@@ -55,9 +55,16 @@ class _ChatPageState extends State<ChatPage> {
     try {
       final response = await ApiClient().dio.get('/suggestions/daily');
       final data = response.data as Map<String, dynamic>;
+      final suggestionData = data['suggestion'] as Map<String, dynamic>? ?? data;
       if (mounted) {
         setState(() {
-          _dailySuggestion = DailySuggestion.fromJson(data);
+          _dailySuggestion = DailySuggestion.fromJson({
+            'perfume_name': suggestionData['perfume']?['name'] ?? suggestionData['perfume_name'] ?? '',
+            'compatibility_score': suggestionData['compatibility_score'] ?? 0,
+            'justification': suggestionData['justification'] ?? '',
+            'is_owned': suggestionData['is_owned'] ?? false,
+            'perfume_id': suggestionData['perfume']?['id']?.toString() ?? suggestionData['perfume_id']?.toString(),
+          });
           _loadingSuggestion = false;
         });
       }

@@ -34,6 +34,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   bool _isSearching = false;
   bool _hasSearched = false;
   Map<String, dynamic>? _exploreData;
+  bool _showAdvancedSearch = false;
+  String? _selectedFamily;
+  String _brandFilter = '';
+  String _genderFilter = 'Todos';
+  String _timeFilter = 'Todos';
+  String _priceFilter = 'Todos';
+  bool _onlyDupes = false;
 
   @override
   void initState() {
@@ -334,25 +341,145 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
         const SizedBox(height: 8),
-        Text('Famílias Olfativas',
-          style: Theme.of(context).textTheme.titleMedium
-            ?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8, runSpacing: 8,
-          children: families.map<Widget>((f) => ActionChip(
-            avatar: CircleAvatar(
-              backgroundColor: OlfatoTokens.amber, radius: 8),
-            label: Text('${f['name']} (${f['perfumes_count']})'),
-            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            side: BorderSide(color: Theme.of(context).dividerColor),
-            onPressed: () {
-              _searchController.text = f['name'];
-              _smartSearch(f['name']);
-            },
-          )).toList(),
+        // Pesquisa Avançada toggle
+        GestureDetector(
+          onTap: () => setState(() => _showAdvancedSearch = !_showAdvancedSearch),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: OlfatoTokens.mist,
+              borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+              border: Border.all(color: OlfatoTokens.borderLight),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.tune_rounded, size: 18, color: OlfatoTokens.plum),
+                const SizedBox(width: 8),
+                Text(
+                  'Pesquisa Avançada',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: OlfatoTokens.ink,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  _showAdvancedSearch ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                  color: OlfatoTokens.plum,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: 24),
+        // Advanced search filters
+        if (_showAdvancedSearch) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: OlfatoTokens.mist,
+              borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+              border: Border.all(color: OlfatoTokens.borderLight),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Família olfativa chips
+                Text('Família olfativa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: families.map<Widget>((f) {
+                    final familyName = f['name'] as String? ?? '';
+                    final isSelected = _selectedFamily == familyName;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedFamily = isSelected ? null : familyName;
+                        });
+                        _applyAdvancedSearch();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? OlfatoTokens.plum : Colors.white,
+                          borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                          border: Border.all(color: isSelected ? OlfatoTokens.plum : OlfatoTokens.borderLight),
+                        ),
+                        child: Text(
+                          familyName,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isSelected ? Colors.white : OlfatoTokens.ink,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                // Marca
+                Text('Marca', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
+                const SizedBox(height: 6),
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Digite a marca...',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
+                  ),
+                  style: const TextStyle(fontSize: 13),
+                  onChanged: (v) => _brandFilter = v,
+                  onSubmitted: (_) => _applyAdvancedSearch(),
+                ),
+                const SizedBox(height: 14),
+                // Gênero
+                Text('Gênero', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
+                const SizedBox(height: 6),
+                _buildDropdown(['Todos', 'Masculino', 'Feminino', 'Unissex'], _genderFilter, (v) {
+                  setState(() => _genderFilter = v);
+                  _applyAdvancedSearch();
+                }),
+                const SizedBox(height: 14),
+                // Horário
+                Text('Horário', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
+                const SizedBox(height: 6),
+                _buildDropdown(['Todos', 'Melhor para Dia', 'Melhor para Noite'], _timeFilter, (v) {
+                  setState(() => _timeFilter = v);
+                  _applyAdvancedSearch();
+                }),
+                const SizedBox(height: 14),
+                // Faixa de preço
+                Text('Faixa de preço', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
+                const SizedBox(height: 6),
+                _buildDropdown(['Todos', 'Até R\$100', 'R\$100-300', 'R\$300-500', 'Acima de R\$500'], _priceFilter, (v) {
+                  setState(() => _priceFilter = v);
+                  _applyAdvancedSearch();
+                }),
+                const SizedBox(height: 14),
+                // Apenas dupes
+                Row(
+                  children: [
+                    Text('Apenas dupes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
+                    const Spacer(),
+                    Switch.adaptive(
+                      value: _onlyDupes,
+                      activeColor: OlfatoTokens.pitanga,
+                      onChanged: (v) {
+                        setState(() => _onlyDupes = v);
+                        _applyAdvancedSearch();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 16),
         Text('Destaques',
           style: Theme.of(context).textTheme.titleMedium
             ?.copyWith(fontWeight: FontWeight.w600)),
@@ -366,6 +493,65 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         const SizedBox(height: 80),
       ],
     );
+  }
+
+  Widget _buildDropdown(List<String> options, String value, ValueChanged<String> onChanged) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: OlfatoTokens.borderLight),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButton<String>(
+        value: value,
+        isExpanded: true,
+        underline: const SizedBox.shrink(),
+        style: TextStyle(fontSize: 13, color: OlfatoTokens.ink),
+        items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+        onChanged: (v) { if (v != null) onChanged(v); },
+      ),
+    );
+  }
+
+  void _applyAdvancedSearch() {
+    final Map<String, dynamic> params = {};
+    if (_selectedFamily != null) params['family'] = _selectedFamily;
+    if (_brandFilter.isNotEmpty) params['brand'] = _brandFilter;
+    if (_genderFilter != 'Todos') params['gender'] = _genderFilter;
+    if (_timeFilter != 'Todos') params['time_of_day'] = _timeFilter == 'Melhor para Dia' ? 'day' : 'night';
+    if (_priceFilter != 'Todos') {
+      switch (_priceFilter) {
+        case 'Até R\$100': params['max_price'] = 100; break;
+        case 'R\$100-300': params['min_price'] = 100; params['max_price'] = 300; break;
+        case 'R\$300-500': params['min_price'] = 300; params['max_price'] = 500; break;
+        case 'Acima de R\$500': params['min_price'] = 500; break;
+      }
+    }
+    if (_onlyDupes) params['only_dupes'] = true;
+
+    if (params.isEmpty) {
+      setState(() { _searchResults = []; _hasSearched = false; });
+      return;
+    }
+
+    _performAdvancedSearch(params);
+  }
+
+  Future<void> _performAdvancedSearch(Map<String, dynamic> params) async {
+    setState(() => _isSearching = true);
+    try {
+      final response = await ApiClient().dio.get('/perfumes/search', queryParameters: {
+        'q': _searchController.text.trim().isNotEmpty ? _searchController.text.trim() : '',
+        ...params,
+      });
+      if (mounted) setState(() {
+        _searchResults = response.data as List<dynamic>;
+        _isSearching = false;
+        _hasSearched = true;
+      });
+    } catch (_) {
+      if (mounted) setState(() { _isSearching = false; _hasSearched = true; });
+    }
   }
 
   void _showMultipleResults(List<Map<String, dynamic>> perfumes, String aiName) {

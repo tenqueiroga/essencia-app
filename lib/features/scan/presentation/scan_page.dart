@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
+import 'package:go_router/go_router.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../app/theme/olfato_theme.dart';
 import '../../../core/network/api_client.dart';
@@ -14,7 +18,9 @@ class ScanPage extends StatefulWidget {
 
 class _ScanPageState extends State<ScanPage> {
   final _barcodeController = TextEditingController();
+  final _nameSearchController = TextEditingController();
   bool _isSearching = false;
+  bool _isIdentifying = false;
   Map<String, dynamic>? _foundPerfume;
   String? _error;
 
@@ -42,46 +48,121 @@ class _ScanPageState extends State<ScanPage> {
               ),
               const SizedBox(height: 24),
 
-              // Barcode scanner placeholder (web)
-              GlassCard(
-                child: Column(
-                  children: [
-                    Container(
-                      height: 160,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: OlfatoTokens.surfaceDark,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: OlfatoTokens.borderDark),
+              if (kIsWeb) ...[
+                // Web: search by name
+                GlassCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Buscar por nome',
+                        style: TextStyle(color: OlfatoTokens.vanilla, fontWeight: FontWeight.w600, fontSize: 13),
                       ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.qr_code_scanner, size: 48, color: OlfatoTokens.textSecondaryDark),
-                          SizedBox(height: 8),
-                          Text('Câmera disponível no app mobile', style: TextStyle(color: OlfatoTokens.textSecondaryDark, fontSize: 12)),
-                        ],
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _nameSearchController,
+                        decoration: InputDecoration(
+                          hintText: 'Nome ou marca do perfume...',
+                          prefixIcon: const Icon(Icons.search, color: OlfatoTokens.textSecondaryDark),
+                          suffixIcon: IconButton(
+                            icon: _isSearching
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.pitanga))
+                                : const Icon(Icons.arrow_forward, color: OlfatoTokens.pitanga),
+                            onPressed: _searchByName,
+                          ),
+                        ),
+                        onSubmitted: (_) => _searchByName(),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _barcodeController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: 'Digite o código de barras...',
-                        prefixIcon: const Icon(Icons.barcode_reader, color: OlfatoTokens.textSecondaryDark),
-                        suffixIcon: IconButton(
-                          icon: _isSearching
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.pitanga))
-                              : const Icon(Icons.search, color: OlfatoTokens.pitanga),
-                          onPressed: _searchByBarcode,
+                      const SizedBox(height: 16),
+                      // Upload image button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isIdentifying ? null : _uploadImageFromGallery,
+                          icon: _isIdentifying
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.amber))
+                              : const Icon(Icons.photo_library_outlined),
+                          label: Text(_isIdentifying ? 'Identificando...' : 'Enviar foto'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: OlfatoTokens.vanilla,
+                            side: const BorderSide(color: OlfatoTokens.borderDark),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
-                      onSubmitted: (_) => _searchByBarcode(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                // Barcode input (web)
+                GlassCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Código de barras',
+                        style: TextStyle(color: OlfatoTokens.vanilla, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _barcodeController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: 'Digite o código de barras...',
+                          prefixIcon: const Icon(Icons.barcode_reader, color: OlfatoTokens.textSecondaryDark),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.search, color: OlfatoTokens.pitanga),
+                            onPressed: _searchByBarcode,
+                          ),
+                        ),
+                        onSubmitted: (_) => _searchByBarcode(),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // Mobile: camera scanner placeholder + barcode input
+                GlassCard(
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 160,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: OlfatoTokens.surfaceDark,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: OlfatoTokens.borderDark),
+                        ),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.qr_code_scanner, size: 48, color: OlfatoTokens.textSecondaryDark),
+                            SizedBox(height: 8),
+                            Text('Câmera disponível no app mobile', style: TextStyle(color: OlfatoTokens.textSecondaryDark, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _barcodeController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          hintText: 'Digite o código de barras...',
+                          prefixIcon: const Icon(Icons.barcode_reader, color: OlfatoTokens.textSecondaryDark),
+                          suffixIcon: IconButton(
+                            icon: _isSearching
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.pitanga))
+                                : const Icon(Icons.search, color: OlfatoTokens.pitanga),
+                            onPressed: _searchByBarcode,
+                          ),
+                        ),
+                        onSubmitted: (_) => _searchByBarcode(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
 
               // Error message
@@ -159,8 +240,7 @@ class _ScanPageState extends State<ScanPage> {
               // Quick search alternative
               OutlinedButton.icon(
                 onPressed: () {
-                  // Navigate to explore/search
-                  Navigator.of(context).pushNamed('/explore');
+                  context.push('/explore');
                 },
                 icon: const Icon(Icons.search),
                 label: const Text('Buscar por nome ou marca'),
@@ -199,6 +279,78 @@ class _ScanPageState extends State<ScanPage> {
       setState(() {
         _error = 'Perfume não encontrado com esse código. Tente buscar pelo nome.';
         _isSearching = false;
+      });
+    }
+  }
+
+  Future<void> _searchByName() async {
+    final query = _nameSearchController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() {
+      _isSearching = true;
+      _error = null;
+      _foundPerfume = null;
+    });
+
+    try {
+      final response = await ApiClient().dio.get('/perfumes/search', queryParameters: {'q': query});
+      final results = response.data as List;
+      if (results.isNotEmpty) {
+        setState(() {
+          _foundPerfume = results.first as Map<String, dynamic>;
+          _isSearching = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Nenhum perfume encontrado. Tente outro nome ou marca.';
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Erro ao buscar. Tente novamente.';
+        _isSearching = false;
+      });
+    }
+  }
+
+  Future<void> _uploadImageFromGallery() async {
+    setState(() {
+      _isIdentifying = true;
+      _error = null;
+      _foundPerfume = null;
+    });
+
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
+      if (image == null) {
+        setState(() => _isIdentifying = false);
+        return;
+      }
+
+      final bytes = await image.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      final response = await ApiClient().dio.post('/perfumes/identify', data: {'image': base64Image});
+      final data = response.data as Map<String, dynamic>;
+
+      if (data['identified'] == true && data['perfume'] != null) {
+        setState(() {
+          _foundPerfume = data['perfume'] as Map<String, dynamic>;
+          _isIdentifying = false;
+        });
+      } else {
+        setState(() {
+          _error = data['message'] as String? ?? 'Perfume não identificado. Tente com outra foto.';
+          _isIdentifying = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Erro ao identificar. Tente novamente.';
+        _isIdentifying = false;
       });
     }
   }
@@ -250,6 +402,7 @@ class _ScanPageState extends State<ScanPage> {
   @override
   void dispose() {
     _barcodeController.dispose();
+    _nameSearchController.dispose();
     super.dispose();
   }
 }

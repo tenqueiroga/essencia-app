@@ -78,8 +78,6 @@ class HomePage extends ConsumerWidget {
               const _AuraCTA(),
               const SizedBox(height: 28),
               const _RotatingSection(),
-              const SizedBox(height: 28),
-              const _PopularSection(),
               const SizedBox(height: 80),
             ],
           ),
@@ -202,7 +200,14 @@ class _WeatherCardState extends State<_WeatherCard> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: GestureDetector(
-        onTap: () => context.push('/explore'),
+        onTap: () {
+          final family = temp != null ? getWeatherFamily(temp) : null;
+          if (family != null) {
+            context.push('/explore?family=${Uri.encodeComponent(family.split('/').first)}');
+          } else {
+            context.push('/explore');
+          }
+        },
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -458,7 +463,7 @@ class _CompatibilitySectionState extends State<_CompatibilitySection> {
           final imageUrl = _proxyImg(perfume['image_url'] as String?);
           final score =
               (item['compatibility_score'] ?? item['score'] ?? 0) as num;
-          final perfumeId = perfume['id']?.toString() ?? '';
+          final perfumeId = perfume['id']?.toString() ?? item['perfume_id']?.toString() ?? '';
 
           return Expanded(
             child: Padding(
@@ -685,7 +690,14 @@ class _RotatingSectionState extends State<_RotatingSection> {
       final response = await ApiClient().dio.get(endpoint);
       if (mounted) {
         final data = response.data;
-        final list = data is List ? data : [];
+        List list;
+        if (data is List) {
+          list = data;
+        } else if (data is Map) {
+          list = data['data'] as List? ?? data['perfumes'] as List? ?? [];
+        } else {
+          list = [];
+        }
         setState(() {
           _items = list;
           _loading = false;
@@ -825,7 +837,7 @@ class _RotatingSectionState extends State<_RotatingSection> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${accuracy.toInt()}% similar',
+                  '${(accuracy.toInt() * 10)}% similar',
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -943,209 +955,4 @@ class _RotatingSectionState extends State<_RotatingSection> {
   }
 }
 
-// ─── PopularSection (horizontal carousel) ─────────────────────────────────────
 
-class _PopularSection extends StatefulWidget {
-  const _PopularSection();
-
-  @override
-  State<_PopularSection> createState() => _PopularSectionState();
-}
-
-class _PopularSectionState extends State<_PopularSection> {
-  List<dynamic> _items = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    try {
-      final response = await ApiClient().dio.get('/perfumes/popular');
-      if (mounted) {
-        final data = response.data;
-        final list = data is List ? data : [];
-        setState(() {
-          _items = list;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading || _items.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section title with "Ver todos >"
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Populares',
-                  style: GoogleFonts.ebGaramond(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: OlfatoTokens.ink,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: () => context.push('/explore'),
-                child: Text(
-                  'Ver todos >',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: OlfatoTokens.plum,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            itemCount: _items.length,
-            itemBuilder: (context, index) {
-              final item = _items[index] as Map<String, dynamic>;
-              return _buildPopularCard(item);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPopularCard(Map<String, dynamic> item) {
-    final name = item['name'] as String? ?? '';
-    final brand = item['brand'] as String? ?? '';
-    final imageUrl = _proxyImg(item['image_url'] as String?);
-    final perfumeId = item['id']?.toString() ?? '';
-    final rating = (item['rating'] ?? 0) as num;
-
-    return GestureDetector(
-      onTap: () {
-        if (perfumeId.isNotEmpty) context.push('/perfume/$perfumeId');
-      },
-      child: Container(
-        width: 150,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
-          border: Border.all(color: OlfatoTokens.borderLight),
-          boxShadow: [OlfatoTokens.cardShadow],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Image
-              Container(
-                height: 80,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: OlfatoTokens.mist,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.local_florist,
-                          color: OlfatoTokens.plum,
-                          size: 28,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.local_florist,
-                        color: OlfatoTokens.plum,
-                        size: 28,
-                      ),
-              ),
-              const SizedBox(height: 8),
-              // Name
-              Text(
-                name,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: OlfatoTokens.ink,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 2),
-              // Brand
-              Text(
-                brand,
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  color: OlfatoTokens.gray,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-              const Spacer(),
-              // Rating stars
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ...List.generate(5, (i) {
-                    if (i < rating.floor()) {
-                      return const Icon(
-                        Icons.star_rounded,
-                        size: 14,
-                        color: OlfatoTokens.amber,
-                      );
-                    } else if (i < rating.ceil() && rating % 1 != 0) {
-                      return const Icon(
-                        Icons.star_half_rounded,
-                        size: 14,
-                        color: OlfatoTokens.amber,
-                      );
-                    }
-                    return Icon(
-                      Icons.star_outline_rounded,
-                      size: 14,
-                      color: OlfatoTokens.gray.withValues(alpha: 0.4),
-                    );
-                  }),
-                  const SizedBox(width: 4),
-                  Text(
-                    rating.toStringAsFixed(1),
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: OlfatoTokens.ink,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
