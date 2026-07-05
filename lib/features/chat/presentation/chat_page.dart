@@ -134,6 +134,12 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ),
           const Spacer(),
+          // History button
+          IconButton(
+            icon: const Icon(Icons.history, color: OlfatoTokens.gray),
+            onPressed: _showConversationHistory,
+            tooltip: 'Histórico',
+          ),
           // Close button (X)
           IconButton(
             icon: const Icon(Icons.close, color: OlfatoTokens.ink),
@@ -742,38 +748,160 @@ class _ChatPageState extends State<ChatPage> {
       context.push('/perfume/${suggestion.id}');
       return;
     }
-    // Search for the perfume by name to get its ID
+    // Try exact search first
     try {
       final response = await ApiClient().dio.get(
         '/perfumes/search',
-        queryParameters: {'q': suggestion.name},
+        queryParameters: {'q': '${suggestion.name} ${suggestion.house}'.trim()},
       );
       final results = response.data;
       final list = results is List ? results : [];
       if (list.isNotEmpty && mounted) {
-        final perfumeId = list.first['id']?.toString();
+        // Find best match by name similarity
+        final exactMatch = list.firstWhere(
+          (p) => (p['name'] as String?)?.toLowerCase() == suggestion.name.toLowerCase(),
+          orElse: () => list.first,
+        );
+        final perfumeId = exactMatch['id']?.toString();
         if (perfumeId != null && perfumeId.isNotEmpty) {
           context.push('/perfume/$perfumeId');
           return;
         }
       }
-      // If search returns nothing, try with brand
-      if (mounted && suggestion.house.isNotEmpty) {
-        final response2 = await ApiClient().dio.get(
-          '/perfumes/search',
-          queryParameters: {'q': '${suggestion.name} ${suggestion.house}'},
-        );
-        final results2 = response2.data;
-        final list2 = results2 is List ? results2 : [];
-        if (list2.isNotEmpty && mounted) {
-          final perfumeId = list2.first['id']?.toString();
-          if (perfumeId != null && perfumeId.isNotEmpty) {
-            context.push('/perfume/$perfumeId');
+    } catch (_) {}
+    
+    // Fallback: show snackbar that perfume wasn't found
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Não encontrei "${suggestion.name}" na base. Tente buscar no Explorar.'),
+        backgroundColor: OlfatoTokens.gray,
+      ));
+    }
+  }
+
+  // ─── Conversation History ───────────────────────────────────────────────
+
+  Future<void> _showConversationHistory() async {
+    try {
+      final response = await ApiClient().dio.get('/chat/conversations');
+      final conversations = response.data as List;
+      if (!mounted) return;
+      
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: OlfatoTokens.vanilla,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        isScrollControlled: true,
+        builder: (ctx) => DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.85,
+          expand: false,
+          builder: (_, scroll) => Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(children: [
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: OlfatoTokens.gray, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 12),
+                  Text('Conversas anteriores', style: GoogleFonts.ebGaramond(fontSize: 20, fontWeight: FontWeight.w700, color: OlfatoTokens.ink)),
+                ]),
+              ),
+              Expanded(
+                child: conversations.isEmpty
+                  ? Center(child: Text('Nenhuma conversa anterior', style: GoogleFonts.inter(color: OlfatoTokens.gray)))
+                  : ListView.builder(
+                      controller: scroll,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: conversations.length,
+                      itemBuilder: (_, i) {
+                        final conv = conversations[i] as Map<String, dynamic>;
+                        final lastMessage = conv['last_message'] as String? ?? conv['title'] as String? ?? 'Conversa ${i + 1}';
+                        final updatedAt = conv['updated_at'] as String?;
+                        
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _loadConversation(conv['id']?.toString() ?? '');
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: OlfatoTokens.mist,
+                              borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                              border: Border.all(color: OlfatoTokens.borderLight),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.chat_bubble_outline, color: OlfatoTokens.plum, size: 18),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        lastMessage,
+                                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: OlfatoTokens.ink),
+                                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (updatedAt != null)
+                                        Text(
+                                          _formatDate(updatedAt),
+                                          style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, color: OlfatoTokens.gray, size: 18),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _loadConversation(String conversationId) async {
+    if (conversationId.isEmpty) return;
+    try {
+      final response = await ApiClient().dio.get('/chat/conversations/$conversationId/messages');
+      final messages = response.data as List;
+      if (mounted) {
+        setState(() {
+          _conversationId = conversationId;
+          _messages.clear();
+          for (final msg in messages) {
+            _messages.add({
+              'role': msg['role'] as String,
+              'content': msg['content'] as String,
+            });
           }
-        }
+        });
+        _scrollToBottom();
       }
+    } catch (_) {}
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inMinutes < 60) return 'Há ${diff.inMinutes} min';
+      if (diff.inHours < 24) return 'Há ${diff.inHours}h';
+      if (diff.inDays < 7) return 'Há ${diff.inDays} dias';
+      return '${date.day}/${date.month}/${date.year}';
     } catch (_) {
-      // Silently fail if search doesn't work
+      return '';
     }
   }
 
