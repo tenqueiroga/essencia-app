@@ -1132,7 +1132,11 @@ class _PriceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final prices = (perfume['prices'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final rawPrices = perfume['prices'] as List? ?? [];
+    final prices = rawPrices
+        .whereType<Map<String, dynamic>>()
+        .where((p) => (p['price'] as num?)?.toDouble() != null && (p['price'] as num).toDouble() > 0)
+        .toList();
 
     if (prices.isEmpty) {
       // Fallback to average_price
@@ -1190,7 +1194,7 @@ class _PriceSection extends StatelessWidget {
       );
     }
 
-    // Sort by price ascending
+    // Sort by price ascending, limit to 5
     final sorted = List<Map<String, dynamic>>.from(prices)
       ..sort((a, b) {
         final pa = (a['price'] as num?)?.toDouble() ?? double.infinity;
@@ -1198,7 +1202,8 @@ class _PriceSection extends StatelessWidget {
         return pa.compareTo(pb);
       });
 
-    final lowestPrice = (sorted.first['price'] as num?)?.toDouble();
+    final displayPrices = sorted.take(5).toList();
+    final lowestPrice = (displayPrices.first['price'] as num?)?.toDouble();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1214,7 +1219,7 @@ class _PriceSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          ...sorted.map((store) {
+          ...displayPrices.map((store) {
             final source = store['source'] as String? ?? '';
             final price = (store['price'] as num?)?.toDouble();
             final url = store['url'] as String?;
