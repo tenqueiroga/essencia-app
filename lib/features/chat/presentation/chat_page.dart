@@ -738,7 +738,7 @@ class _ChatPageState extends State<ChatPage> {
   // ─── Navigation ───────────────────────────────────────────────────────────
 
   Future<void> _navigateToPerfume(_PerfumeSuggestion suggestion) async {
-    if (suggestion.id != null) {
+    if (suggestion.id != null && suggestion.id!.isNotEmpty) {
       context.push('/perfume/${suggestion.id}');
       return;
     }
@@ -748,11 +748,28 @@ class _ChatPageState extends State<ChatPage> {
         '/perfumes/search',
         queryParameters: {'q': suggestion.name},
       );
-      final results = response.data as List;
-      if (results.isNotEmpty && mounted) {
-        final perfumeId = results.first['id'] as String?;
-        if (perfumeId != null) {
+      final results = response.data;
+      final list = results is List ? results : [];
+      if (list.isNotEmpty && mounted) {
+        final perfumeId = list.first['id']?.toString();
+        if (perfumeId != null && perfumeId.isNotEmpty) {
           context.push('/perfume/$perfumeId');
+          return;
+        }
+      }
+      // If search returns nothing, try with brand
+      if (mounted && suggestion.house.isNotEmpty) {
+        final response2 = await ApiClient().dio.get(
+          '/perfumes/search',
+          queryParameters: {'q': '${suggestion.name} ${suggestion.house}'},
+        );
+        final results2 = response2.data;
+        final list2 = results2 is List ? results2 : [];
+        if (list2.isNotEmpty && mounted) {
+          final perfumeId = list2.first['id']?.toString();
+          if (perfumeId != null && perfumeId.isNotEmpty) {
+            context.push('/perfume/$perfumeId');
+          }
         }
       }
     } catch (_) {
