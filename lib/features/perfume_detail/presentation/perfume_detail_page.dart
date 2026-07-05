@@ -163,6 +163,10 @@ class _PerfumeDetailPageState extends State<PerfumeDetailPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _PerfumeHeader(perfume: _perfume!, proxyUrl: _proxyUrl),
+          if (_perfume!['is_dupe_of'] != null) ...[
+            const SizedBox(height: 12),
+            _DupeOfTag(dupeData: _perfume!['is_dupe_of'] as Map<String, dynamic>),
+          ],
           const SizedBox(height: 16),
           _ScentSummary(perfume: _perfume!),
           const SizedBox(height: 20),
@@ -1774,6 +1778,82 @@ class _CollectionButtonState extends State<_CollectionButton> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ─── DupeOfTag ────────────────────────────────────────────────────────────────
+
+/// Shows a tag when this perfume is a dupe of another, with the original name,
+/// brand, and accuracy score. Tapping navigates to the original perfume.
+class _DupeOfTag extends StatelessWidget {
+  final Map<String, dynamic> dupeData;
+
+  const _DupeOfTag({required this.dupeData});
+
+  @override
+  Widget build(BuildContext context) {
+    final originalName = dupeData['original_name'] as String? ?? '';
+    final originalBrand = dupeData['original_brand'] as String? ?? '';
+    final accuracyScore = dupeData['accuracy_score'] as num?;
+    final originalPerfume = dupeData['perfume'] as Map<String, dynamic>?;
+    final originalId = originalPerfume?['id']?.toString();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GestureDetector(
+        onTap: () {
+          if (originalId != null && originalId.isNotEmpty) {
+            context.push('/perfume/$originalId');
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: OlfatoTokens.pitanga.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+            border: Border.all(color: OlfatoTokens.pitanga.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.content_copy, size: 16, color: OlfatoTokens.pitanga),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Dupe de $originalName ($originalBrand)',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: OlfatoTokens.pitanga,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (accuracyScore != null && accuracyScore > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: OlfatoTokens.pitanga.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${(accuracyScore.toInt() * 10)}%',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: OlfatoTokens.pitanga,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(width: 4),
+              const Icon(Icons.open_in_new, size: 12, color: OlfatoTokens.pitanga),
+            ],
           ),
         ),
       ),

@@ -77,6 +77,8 @@ class HomePage extends ConsumerWidget {
               const SizedBox(height: 28),
               const _AuraCTA(),
               const SizedBox(height: 28),
+              const _FeedSection(),
+              const SizedBox(height: 28),
               const _RotatingSection(),
               const SizedBox(height: 80),
             ],
@@ -956,3 +958,186 @@ class _RotatingSectionState extends State<_RotatingSection> {
 }
 
 
+
+// ─── FeedSection (últimos reviews/feed) ───────────────────────────────────────
+
+class _FeedSection extends StatefulWidget {
+  const _FeedSection();
+
+  @override
+  State<_FeedSection> createState() => _FeedSectionState();
+}
+
+class _FeedSectionState extends State<_FeedSection> {
+  List<dynamic> _items = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeed();
+  }
+
+  Future<void> _loadFeed() async {
+    try {
+      final response = await ApiClient().dio.get('/feed');
+      if (mounted) {
+        final data = response.data;
+        setState(() {
+          _items = data is List ? data : [];
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || _items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            'Últimos Reviews',
+            style: GoogleFonts.ebGaramond(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: OlfatoTokens.ink,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 130,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            itemCount: _items.length,
+            itemBuilder: (context, index) {
+              final item = _items[index] as Map<String, dynamic>;
+              return _buildFeedCard(item);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeedCard(Map<String, dynamic> item) {
+    final title = item['title'] as String? ?? 'Review';
+    final description = item['description'] as String? ?? '';
+    final instagramUrl = item['instagram_url'] as String?;
+    final thumbnailUrl = item['thumbnail_url'] as String?;
+    final perfumeId = item['perfume_id']?.toString();
+
+    return GestureDetector(
+      onTap: () {
+        if (perfumeId != null && perfumeId.isNotEmpty) {
+          context.push('/perfume/$perfumeId');
+        } else if (instagramUrl != null && instagramUrl.isNotEmpty) {
+          // Could open instagram URL
+        }
+      },
+      child: Container(
+        width: 280,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.borderLight),
+          boxShadow: [OlfatoTokens.cardShadow],
+        ),
+        child: Row(
+          children: [
+            // Thumbnail or icon
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: OlfatoTokens.pitanga.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: thumbnailUrl != null && thumbnailUrl.isNotEmpty
+                  ? Image.network(
+                      thumbnailUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.play_circle_outline,
+                        color: OlfatoTokens.pitanga,
+                        size: 28,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.play_circle_outline,
+                      color: OlfatoTokens.pitanga,
+                      size: 28,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: OlfatoTokens.pitanga.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'REVIEW',
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: OlfatoTokens.pitanga,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: OlfatoTokens.ink,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      description,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: OlfatoTokens.gray,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Arrow
+            const Icon(
+              Icons.chevron_right,
+              color: OlfatoTokens.gray,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
