@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 import '../../../shared/widgets/glass_card.dart';
 
@@ -53,19 +53,19 @@ class _JournalPageState extends ConsumerState<JournalPage> {
         backgroundColor: Colors.transparent,
       ),
       body: _loading
-        ? const Center(child: CircularProgressIndicator(color: AppColors.gold))
+        ? const Center(child: CircularProgressIndicator(color: OlfatoTokens.amber))
         : Column(
             children: [
               _buildMonthSelector(),
               _buildCalendar(),
-              const Divider(color: AppColors.glassBorder),
+              const Divider(color: OlfatoTokens.borderLight),
               Expanded(child: _buildDayEntries()),
             ],
           ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.gold,
+        backgroundColor: OlfatoTokens.amber,
         onPressed: _showAddEntry,
-        child: const Icon(Icons.add, color: AppColors.background),
+        child: const Icon(Icons.add, color: OlfatoTokens.vanilla),
       ),
     );
   }
@@ -77,7 +77,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left, color: AppColors.gold),
+            icon: const Icon(Icons.chevron_left, color: OlfatoTokens.amber),
             onPressed: () {
               setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1));
               _loadData();
@@ -88,7 +88,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right, color: AppColors.gold),
+            icon: const Icon(Icons.chevron_right, color: OlfatoTokens.amber),
             onPressed: () {
               setState(() => _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1));
               _loadData();
@@ -117,7 +117,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
           // Weekday headers
           Row(
             children: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d) => Expanded(
-              child: Center(child: Text(d, style: const TextStyle(color: AppColors.textMuted, fontSize: 11))),
+              child: Center(child: Text(d, style: const TextStyle(color: OlfatoTokens.gray, fontSize: 11))),
             )).toList(),
           ),
           const SizedBox(height: 4),
@@ -143,11 +143,11 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                       height: 36,
                       margin: const EdgeInsets.all(1),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.gold.withValues(alpha: 0.2)
-                            : hasEntry ? AppColors.gold.withValues(alpha: 0.08)
+                        color: isSelected ? OlfatoTokens.amber.withValues(alpha: 0.2)
+                            : hasEntry ? OlfatoTokens.amber.withValues(alpha: 0.08)
                             : null,
                         borderRadius: BorderRadius.circular(8),
-                        border: isToday ? Border.all(color: AppColors.gold, width: 1) : null,
+                        border: isToday ? Border.all(color: OlfatoTokens.amber, width: 1) : null,
                       ),
                       child: Center(
                         child: Column(
@@ -155,11 +155,11 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                           children: [
                             Text('$dayIndex', style: TextStyle(
                               fontSize: 12,
-                              color: isSelected ? AppColors.gold : AppColors.textPrimary,
+                              color: isSelected ? OlfatoTokens.amber : OlfatoTokens.ink,
                               fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal)),
                             if (hasEntry)
                               Container(width: 4, height: 4, decoration: BoxDecoration(
-                                color: AppColors.gold, shape: BoxShape.circle)),
+                                color: OlfatoTokens.amber, shape: BoxShape.circle)),
                           ],
                         ),
                       ),
@@ -176,7 +176,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
 
   Widget _buildDayEntries() {
     if (_selectedDay == null) {
-      return const Center(child: Text('Selecione um dia para ver ou registrar', style: TextStyle(color: AppColors.textMuted)));
+      return const Center(child: Text('Selecione um dia para ver ou registrar', style: TextStyle(color: OlfatoTokens.gray)));
     }
 
     final dayStr = DateFormat('yyyy-MM-dd').format(_selectedDay!);
@@ -186,10 +186,10 @@ class _JournalPageState extends ConsumerState<JournalPage> {
       return Center(child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.edit_note, size: 40, color: AppColors.textMuted),
+          const Icon(Icons.edit_note, size: 40, color: OlfatoTokens.gray),
           const SizedBox(height: 8),
           Text('Nenhum registro em ${DateFormat('dd/MM').format(_selectedDay!)}',
-            style: const TextStyle(color: AppColors.textMuted)),
+            style: const TextStyle(color: OlfatoTokens.gray)),
           const SizedBox(height: 12),
           ElevatedButton.icon(
             onPressed: _showAddEntry,
@@ -212,20 +212,20 @@ class _JournalPageState extends ConsumerState<JournalPage> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const Icon(Icons.local_florist, color: AppColors.gold, size: 24),
+                const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 24),
                 const SizedBox(width: 12),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(perfume?['name'] ?? 'Perfume', style: const TextStyle(fontWeight: FontWeight.bold)),
                     if (entry['occasion'] != null)
-                      Text(entry['occasion'], style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                      Text(entry['occasion'], style: const TextStyle(color: OlfatoTokens.gray, fontSize: 12)),
                     if (entry['notes'] != null)
-                      Text(entry['notes'], style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                      Text(entry['notes'], style: const TextStyle(color: OlfatoTokens.gray, fontSize: 11)),
                   ],
                 )),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+                  icon: const Icon(Icons.delete_outline, color: OlfatoTokens.error, size: 20),
                   onPressed: () async {
                     await ApiClient().dio.delete('/journal/${entry['id']}');
                     _loadData();
@@ -243,7 +243,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     if (_collection.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Adicione perfumes à coleção primeiro'),
-        backgroundColor: AppColors.error));
+        backgroundColor: OlfatoTokens.error));
       return;
     }
 
@@ -254,7 +254,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: OlfatoTokens.mist,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
@@ -264,7 +264,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2)))),
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: OlfatoTokens.gray, borderRadius: BorderRadius.circular(2)))),
               const SizedBox(height: 16),
               Text('Registrar — ${DateFormat('dd/MM/yyyy').format(date)}',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -272,7 +272,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
               // Perfume selector
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(hintText: 'Selecionar perfume'),
-                dropdownColor: AppColors.surface,
+                dropdownColor: OlfatoTokens.mist,
                 items: _collection.map<DropdownMenuItem<String>>((item) {
                   final p = item['perfume'];
                   return DropdownMenuItem(value: p['id'] as String, child: Text(p['name'] ?? ''));

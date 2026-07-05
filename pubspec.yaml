@@ -1,5 +1,5 @@
 name: frontend
-description: "Perfume Collection App - Vivino dos Perfumes"
+description: "Olfato - Seu gosto, traduzido em perfume."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -25,11 +25,15 @@ dependencies:
   geolocator: ^14.0.2
   image_picker: ^1.2.3
   camera: ^0.12.0+1
+  shared_preferences: ^2.3.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  glados: ^1.1.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/

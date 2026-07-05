@@ -1,21 +1,126 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../app/theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
-import '../../../shared/widgets/empty_state.dart';
-import '../../../shared/widgets/glass_card.dart';
-import '../../../shared/widgets/perfume_detail_sheet.dart';
+
+// ─── Collection Item Type ─────────────────────────────────────────────────────
+
+enum CollectionItemType { perfume, decant, amostra, jaTive }
+
+extension CollectionItemTypeExt on CollectionItemType {
+  String get label => switch (this) {
+        CollectionItemType.perfume => 'Perfumes',
+        CollectionItemType.decant => 'Decantes',
+        CollectionItemType.amostra => 'Amostras',
+        CollectionItemType.jaTive => 'Já Tive',
+      };
+
+  String get singularLabel => switch (this) {
+        CollectionItemType.perfume => 'Perfume',
+        CollectionItemType.decant => 'Decante',
+        CollectionItemType.amostra => 'Amostra',
+        CollectionItemType.jaTive => 'Já Tive',
+      };
+
+  String get apiValue => switch (this) {
+        CollectionItemType.perfume => 'perfume',
+        CollectionItemType.decant => 'decant',
+        CollectionItemType.amostra => 'amostra',
+        CollectionItemType.jaTive => 'ja_tive',
+      };
+}
+
+CollectionItemType? parseCollectionItemType(String? value) {
+  if (value == null) return null;
+  return switch (value) {
+    'perfume' => CollectionItemType.perfume,
+    'decant' => CollectionItemType.decant,
+    'amostra' => CollectionItemType.amostra,
+    'ja_tive' => CollectionItemType.jaTive,
+    _ => null,
+  };
+}
+
+// ─── Pure filtering logic (exported for testing) ──────────────────────────────
+
+/// Counts items per type. Returns a map with keys: perfume, decant, amostra, jaTive.
+Map<CollectionItemType, int> computeCollectionStats(List<dynamic> items) {
+  final counts = {
+    CollectionItemType.perfume: 0,
+    CollectionItemType.decant: 0,
+    CollectionItemType.amostra: 0,
+    CollectionItemType.jaTive: 0,
+  };
+  for (final item in items) {
+    final type = parseCollectionItemType(item['type'] as String?) ??
+        CollectionItemType.perfume;
+    counts[type] = (counts[type] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/// Filters collection items by type and family (AND logic).
+/// If typeFilter is null, all types pass. If familyFilter is null/empty, all families pass.
+List<dynamic> filterCollectionItems(
+  List<dynamic> items, {
+  CollectionItemType? typeFilter,
+  String? familyFilter,
+  String? searchQuery,
+}) {
+  return items.where((item) {
+    // Type filter
+    if (typeFilter != null) {
+      final itemType = parseCollectionItemType(item['type'] as String?) ??
+          CollectionItemType.perfume;
+      if (itemType != typeFilter) return false;
+    }
+
+    final perfume = item['perfume'] as Map<String, dynamic>?;
+    if (perfume == null) return false;
+
+    // Family filter
+    if (familyFilter != null && familyFilter.isNotEmpty) {
+      final family =
+          (perfume['olfactory_family']?['name'] as String?)?.toLowerCase() ?? '';
+      if (family != familyFilter.toLowerCase()) return false;
+    }
+
+    // Search filter
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final query = searchQuery.toLowerCase();
+      final name = (perfume['name'] as String?)?.toLowerCase() ?? '';
+      final brand = (perfume['brand'] as String?)?.toLowerCase() ?? '';
+      if (!name.contains(query) && !brand.contains(query)) return false;
+    }
+
+    return true;
+  }).toList();
+}
+
+/// Extracts unique olfactory families from collection items.
+List<String> extractFamilies(List<dynamic> items) {
+  final families = <String>{};
+  for (final item in items) {
+    final perfume = item['perfume'] as Map<String, dynamic>?;
+    final family = perfume?['olfactory_family']?['name'] as String?;
+    if (family != null && family.isNotEmpty) {
+      families.add(family);
+    }
+  }
+  final sorted = families.toList()..sort();
+  return sorted;
+}
+
+// ─── Providers ────────────────────────────────────────────────────────────────
 
 final collectionProvider = FutureProvider.autoDispose((ref) async {
   final response = await ApiClient().dio.get('/collection');
   return response.data['data'] as List<dynamic>;
 });
 
-final collectionProfileProvider = FutureProvider.autoDispose((ref) async {
-  final response = await ApiClient().dio.get('/collection/profile');
-  return response.data as Map<String, dynamic>;
-});
+// ─── CollectionPage ───────────────────────────────────────────────────────────
 
 class CollectionPage extends ConsumerStatefulWidget {
   const CollectionPage({super.key});
@@ -24,15 +129,11 @@ class CollectionPage extends ConsumerStatefulWidget {
   ConsumerState<CollectionPage> createState() => _CollectionPageState();
 }
 
-class _CollectionPageState extends ConsumerState<CollectionPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
+class _CollectionPageState extends ConsumerState<CollectionPage> {
+  CollectionItemType? _selectedType; // null = "Todos"
+  String? _selectedFamily;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
 
   String _proxyUrl(String? url) {
     if (url == null || url.isEmpty) return '';
@@ -43,588 +144,629 @@ class _CollectionPageState extends ConsumerState<CollectionPage>
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final collectionAsync = ref.watch(collectionProvider);
 
     return Scaffold(
+      backgroundColor: OlfatoTokens.vanilla,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
-                children: [
-                  Text('Minha Coleção',
-                    style: Theme.of(context).textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, color: AppColors.textMuted, size: 20),
-                    onPressed: () {
-                      ref.invalidate(collectionProvider);
-                      ref.invalidate(collectionProfileProvider);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            // Tabs
-            TabBar(
-              controller: _tabController,
-              indicatorColor: AppColors.gold,
-              labelColor: AppColors.gold,
-              unselectedLabelColor: AppColors.textMuted,
-              tabs: const [
-                Tab(text: 'Perfumes'),
-                Tab(text: 'Desejos'),
-                Tab(text: 'Estatísticas'),
+        child: collectionAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: OlfatoTokens.plum),
+          ),
+          error: (e, _) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline,
+                    color: OlfatoTokens.error, size: 48),
+                const SizedBox(height: 12),
+                Text('Erro ao carregar coleção',
+                    style: GoogleFonts.inter(color: OlfatoTokens.gray)),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => ref.invalidate(collectionProvider),
+                  child: Text('Tentar novamente',
+                      style: GoogleFonts.inter(color: OlfatoTokens.plum)),
+                ),
               ],
             ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildPerfumesList(collectionAsync),
-                  _buildWishlist(),
-                  _buildStats(),
-                ],
+          ),
+          data: (items) {
+            if (items.isEmpty) {
+              return _buildEmptyState();
+            }
+            return _buildContent(items);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.collections_bookmark_outlined,
+                size: 80, color: OlfatoTokens.plum.withValues(alpha: 0.3)),
+            const SizedBox(height: 20),
+            Text(
+              'Sua coleção está vazia',
+              style: GoogleFonts.ebGaramond(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: OlfatoTokens.ink,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Comece adicionando seus perfumes favoritos.\n'
+              'Explore, escaneie ou busque para começar!',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: OlfatoTokens.gray,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            ElevatedButton.icon(
+              onPressed: () => context.go('/explore'),
+              icon: const Icon(Icons.search, size: 18),
+              label: Text('Explorar Perfumes',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: OlfatoTokens.plum,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(OlfatoTokens.radiusControl),
+                ),
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.gold,
-        onPressed: () => context.go('/explore'),
-        child: const Icon(Icons.add, color: AppColors.background),
-      ),
     );
   }
 
-  Widget _buildPerfumesList(AsyncValue<List<dynamic>> collectionAsync) {
-    return collectionAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.gold)),
-      error: (e, _) => Center(child: Text('Erro ao carregar', style: TextStyle(color: AppColors.error))),
-      data: (items) {
-        if (items.isEmpty) {
-          return EmptyState(
-            icon: Icons.collections_bookmark_outlined,
-            title: 'Sua coleção está vazia',
-            subtitle: 'Busque perfumes na aba Explorar\nou use o Scan para adicionar',
-            buttonText: 'Explorar Perfumes',
-            onButtonPressed: () => context.go('/explore'),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final itemId = items[index]['id'] as String;
-            return Dismissible(
-              key: Key(itemId),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20),
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.delete_outline, color: AppColors.error),
-              ),
-              confirmDismiss: (_) async {
-                return await showDialog(context: context, builder: (ctx) => AlertDialog(
-                  backgroundColor: AppColors.surface,
-                  title: const Text('Remover da coleção?'),
-                  content: const Text('O perfume será removido da sua coleção.'),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remover', style: TextStyle(color: AppColors.error))),
-                  ],
-                ));
-              },
-              onDismissed: (_) async {
-                try {
-                  await ApiClient().dio.delete('/collection/$itemId');
-                  ref.invalidate(collectionProvider);
-                } catch (_) {}
-              },
-              child: _CollectionItem(
-                item: items[index],
-                proxyUrl: _proxyUrl,
-                onTap: () => openPerfumeDetailSheet(context, items[index]['perfume']),
-              ),
-            );
-          },
-        );
-      },
+  Widget _buildContent(List<dynamic> items) {
+    final stats = computeCollectionStats(items);
+    final families = extractFamilies(items);
+    final filteredItems = filterCollectionItems(
+      items,
+      typeFilter: _selectedType,
+      familyFilter: _selectedFamily,
+      searchQuery: _searchQuery,
     );
-  }
 
-  Widget _buildWishlist() {
-    return FutureBuilder<List<dynamic>>(
-      future: ApiClient().dio.get('/wishlist').then((r) => (r.data['data'] ?? []) as List<dynamic>),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: AppColors.gold));
-        }
-        final items = snapshot.data ?? [];
-        if (items.isEmpty) {
-          return const EmptyState(
-            icon: Icons.favorite_border,
-            title: 'Lista de desejos vazia',
-            subtitle: 'Explore perfumes e adicione os que deseja comprar!',
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final perfume = item['perfume'] as Map<String, dynamic>?;
-            if (perfume == null) return const SizedBox.shrink();
-            final imageUrl = _proxyUrl(perfume['image_url'] as String?);
-            final itemId = item['id'] as String;
-            return Dismissible(
-              key: Key(itemId),
-              direction: DismissDirection.endToStart,
-              background: Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 20),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(16)),
-                child: const Icon(Icons.delete_outline, color: AppColors.error),
-              ),
-              onDismissed: (_) async {
-                try {
-                  await ApiClient().dio.delete('/wishlist/$itemId');
-                } catch (_) {}
-              },
-              child: GestureDetector(
-              onTap: () => openPerfumeDetailSheet(context, perfume),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title + Refresh
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+          child: Row(
+            children: [
+              Text(
+                'Minha Coleção',
+                style: GoogleFonts.ebGaramond(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  color: OlfatoTokens.ink,
                 ),
-                child: GlassCard(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.refresh,
+                    color: OlfatoTokens.gray, size: 20),
+                onPressed: () => ref.invalidate(collectionProvider),
+              ),
+            ],
+          ),
+        ),
+
+        // Stats bar
+        _CollectionStatsBar(stats: stats),
+
+        // Search input
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (v) => setState(() => _searchQuery = v),
+            style: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.ink),
+            decoration: InputDecoration(
+              hintText: 'Buscar por nome ou marca...',
+              hintStyle: GoogleFonts.inter(
+                  fontSize: 14, color: OlfatoTokens.gray),
+              prefixIcon:
+                  const Icon(Icons.search, color: OlfatoTokens.gray, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear,
+                          color: OlfatoTokens.gray, size: 18),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: OlfatoTokens.mist,
+              border: OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(OlfatoTokens.radiusControl),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 12),
+            ),
+          ),
+        ),
+
+        // Type filter tabs
+        const SizedBox(height: 16),
+        _TypeFilterTabs(
+          selected: _selectedType,
+          onSelected: (type) => setState(() => _selectedType = type),
+        ),
+
+        // Family filter chips
+        if (families.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _FamilyFilterChips(
+            families: families,
+            selected: _selectedFamily,
+            onSelected: (family) => setState(() => _selectedFamily = family),
+          ),
+        ],
+
+        // Grid content
+        const SizedBox(height: 16),
+        Expanded(
+          child: filteredItems.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          width: 54, height: 68,
-                          color: AppColors.surfaceLight,
-                          child: imageUrl.isNotEmpty
-                              ? Image.network(imageUrl, fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => const Icon(Icons.favorite, color: AppColors.gold, size: 22))
-                              : const Icon(Icons.favorite, color: AppColors.gold, size: 22),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(perfume['name'] ?? '',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 2),
-                            Text(perfume['brand'] ?? '',
-                                style: const TextStyle(color: AppColors.gold, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      // Move to collection button
-                      IconButton(
-                        icon: const Icon(Icons.add_circle, color: AppColors.accent, size: 28),
-                        tooltip: 'Mover para coleção',
-                        onPressed: () async {
-                          try {
-                            await ApiClient().dio.post('/wishlist/${item['id']}/move-to-collection');
-                            if (mounted) {
-                              setState(() {});
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text('${perfume['name']} movido para a coleção!'),
-                                backgroundColor: AppColors.accent));
-                              ref.invalidate(collectionProvider);
-                            }
-                          } catch (_) {}
-                        },
+                      Icon(Icons.filter_list_off,
+                          size: 48,
+                          color: OlfatoTokens.gray.withValues(alpha: 0.5)),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Nenhum item encontrado',
+                        style: GoogleFonts.inter(
+                            color: OlfatoTokens.gray, fontSize: 14),
                       ),
                     ],
                   ),
+                )
+              : _CollectionGrid(
+                  items: filteredItems,
+                  proxyUrl: _proxyUrl,
+                  onItemTap: (item) =>
+                      context.push('/perfume/${item['perfume']['id']}'),
                 ),
-              ),
-            ),  // Dismissible
-            );
-          },
-        );
-      },
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildStats() {
-    final profileAsync = ref.watch(collectionProfileProvider);
-    final collectionAsync = ref.watch(collectionProvider);
+// ─── CollectionStatsBar ───────────────────────────────────────────────────────
 
-    return profileAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.gold)),
-      error: (_, __) => const Center(child: Text('Erro ao carregar estatísticas')),
-      data: (profile) {
-        final families = (profile['families'] as List?) ?? [];
-        final total = profile['total_perfumes'] ?? 0;
+class _CollectionStatsBar extends StatelessWidget {
+  final Map<CollectionItemType, int> stats;
+  const _CollectionStatsBar({required this.stats});
 
-        // Compute extra stats from collection data
-        final items = collectionAsync.valueOrNull ?? [];
-        final seasonCount = <String, int>{};
-        final timeCount = <String, int>{'Dia': 0, 'Noite': 0};
-        final genderCount = <String, int>{};
+  @override
+  Widget build(BuildContext context) {
+    final perfumes = stats[CollectionItemType.perfume] ?? 0;
+    final decants = stats[CollectionItemType.decant] ?? 0;
+    final amostras = stats[CollectionItemType.amostra] ?? 0;
+    final jaTive = stats[CollectionItemType.jaTive] ?? 0;
 
-        for (final item in items) {
-          final perfume = item['perfume'];
-          // Seasons from perfume data
-          final sd = perfume?['season_data'] as List?;
-          if (sd != null) {
-            for (final s in sd) {
-              final pct = (s['percentage'] as num?) ?? 0;
-              if (pct > 50) {
-                seasonCount[s['name']] = (seasonCount[s['name']] ?? 0) + 1;
-              }
-            }
-          }
-          // Time of day
-          final td = perfume?['time_of_day'] as List?;
-          if (td != null) {
-            for (final t in td) {
-              final pct = (t['percentage'] as num?) ?? 0;
-              if (pct > 50) {
-                timeCount[t['name']] = (timeCount[t['name']] ?? 0) + 1;
-              }
-            }
-          }
-          // Gender
-          final g = perfume?['gender'] as String?;
-          if (g != null) {
-            genderCount[g] = (genderCount[g] ?? 0) + 1;
-          }
-        }
-
-        if (total == 0) {
-          return const EmptyState(
-            icon: Icons.bar_chart,
-            title: 'Sem dados ainda',
-            subtitle: 'Adicione perfumes para ver suas estatísticas',
-          );
-        }
-
-        return ListView(
-          padding: const EdgeInsets.all(16),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: OlfatoTokens.mist,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // Total badge
-            Center(child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.gold.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20)),
-              child: Text('$total perfumes na coleção',
-                style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold)),
-            )),
-            const SizedBox(height: 24),
-
-            // Family distribution chart
-            Text('Famílias Olfativas', style: Theme.of(context).textTheme.titleSmall
-              ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            ...families.map<Widget>((f) {
-              final pct = (f['percentage'] as num?) ?? 0;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(children: [
-                  SizedBox(width: 80, child: Text(f['family'] ?? '',
-                    style: const TextStyle(fontSize: 12))),
-                  Expanded(child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: pct / 100,
-                      backgroundColor: AppColors.surfaceLight,
-                      valueColor: const AlwaysStoppedAnimation(AppColors.gold),
-                      minHeight: 16),
-                  )),
-                  const SizedBox(width: 8),
-                  SizedBox(width: 40, child: Text('${pct.toStringAsFixed(0)}%',
-                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted))),
-                  SizedBox(width: 20, child: Text('${f['count']}',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                ]),
-              );
-            }),
-            const SizedBox(height: 24),
-
-            // Time of day
-            if (timeCount.values.any((v) => v > 0)) ...[
-              Text('Dia vs Noite', style: Theme.of(context).textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 12),
-              GlassCard(child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _StatCircle('🌤️', 'Dia', timeCount['Dia'] ?? 0, total),
-                  _StatCircle('🌙', 'Noite', timeCount['Noite'] ?? 0, total),
-                ],
-              )),
-              const SizedBox(height: 24),
-            ],
-
-            // Season distribution
-            if (seasonCount.isNotEmpty) ...[
-              Text('Estações', style: Theme.of(context).textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 12),
-              GlassCard(child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _StatCircle('🌸', 'Primavera', seasonCount['Primavera'] ?? 0, total),
-                  _StatCircle('☀️', 'Verão', seasonCount['Verão'] ?? 0, total),
-                  _StatCircle('🍂', 'Outono', seasonCount['Outono'] ?? 0, total),
-                  _StatCircle('❄️', 'Inverno', seasonCount['Inverno'] ?? 0, total),
-                ],
-              )),
-              const SizedBox(height: 24),
-            ],
-
-            // Gender
-            if (genderCount.isNotEmpty) ...[
-              Text('Gênero', style: Theme.of(context).textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 12),
-              GlassCard(child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: genderCount.entries.map((e) => Column(children: [
-                  Text(e.key == 'Feminino' ? '♀' : e.key == 'Masculino' ? '♂' : '⚥',
-                    style: const TextStyle(fontSize: 24)),
-                  Text('${e.value}', style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: AppColors.gold)),
-                  Text(e.key, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
-                ])).toList(),
-              )),
-            ],
-            const SizedBox(height: 80),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _StatCircle(String emoji, String label, int count, int total) {
-    final pct = total > 0 ? (count / total * 100).round() : 0;
-    return Column(children: [
-      Text(emoji, style: const TextStyle(fontSize: 24)),
-      const SizedBox(height: 4),
-      Text('$count', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.gold, fontSize: 18)),
-      Text('$pct%', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
-      Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-    ]);
-  }
-
-  void _showDetail(dynamic item) {
-    final perfume = item['perfume'];
-    final userRating = item['rating'] as int?;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (_, scroll) => ListView(
-          controller: scroll,
-          padding: const EdgeInsets.all(24),
-          children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(
-              color: AppColors.textMuted, borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
-
-            // Header
-            Row(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  width: 70, height: 90,
-                  color: AppColors.surfaceLight,
-                  child: _proxyUrl(perfume['image_url']).isNotEmpty
-                    ? Image.network(_proxyUrl(perfume['image_url']),
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.local_florist, color: AppColors.gold, size: 28))
-                    : const Icon(Icons.local_florist, color: AppColors.gold, size: 28),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(perfume['name'] ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  Text(perfume['brand'] ?? '',
-                    style: const TextStyle(color: AppColors.gold)),
-                  if (perfume['perfumer'] != null)
-                    Text('por ${perfume['perfumer']}',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 11, fontStyle: FontStyle.italic)),
-                ],
-              )),
-            ]),
-            const SizedBox(height: 20),
-
-            // User rating - tap to rate
-            const Text('Sua Avaliação', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Row(children: List.generate(5, (i) => GestureDetector(
-              onTap: () async {
-                await ApiClient().dio.put('/collection/${item['id']}/rating',
-                  data: {'rating': i + 1});
-                ref.invalidate(collectionProvider);
-                if (mounted) Navigator.pop(ctx);
-              },
-              child: Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Icon(
-                  i < (userRating ?? 0) ? Icons.star : Icons.star_border,
-                  color: AppColors.gold, size: 32),
-              ),
-            ))),
-            const SizedBox(height: 20),
-
-            // Notes preview
-            if (perfume['top_notes'] != null && (perfume['top_notes'] as List).isNotEmpty) ...[
-              const Text('Notas de Topo', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              const SizedBox(height: 6),
-              Wrap(spacing: 4, runSpacing: 4, children:
-                (perfume['top_notes'] as List).take(5).map<Widget>((n) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFD700).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.3))),
-                  child: Text(n.toString(), style: const TextStyle(fontSize: 11, color: Color(0xFFFFD700))),
-                )).toList()),
-              const SizedBox(height: 16),
-            ],
-
-            // Actions
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(
-                onPressed: () async {
-                  await ApiClient().dio.delete('/collection/${item['id']}');
-                  ref.invalidate(collectionProvider);
-                  ref.invalidate(collectionProfileProvider);
-                  if (mounted) Navigator.pop(ctx);
-                },
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: const Text('Remover', style: TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error)),
-              )),
-              const SizedBox(width: 12),
-              Expanded(child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  // Navigate to explore and search for this perfume
-                  context.go('/explore');
-                },
-                icon: const Icon(Icons.info_outline, size: 18),
-                label: const Text('Ver Ficha', style: TextStyle(fontSize: 12)),
-              )),
-            ]),
+            _StatItem(count: perfumes, label: 'Perfumes'),
+            _divider(),
+            _StatItem(count: decants, label: 'Decantes'),
+            _divider(),
+            _StatItem(count: amostras, label: 'Amostras'),
+            _divider(),
+            _StatItem(count: jaTive, label: 'Já Tive'),
           ],
         ),
       ),
     );
   }
 
+  Widget _divider() => Container(
+        width: 1,
+        height: 28,
+        color: OlfatoTokens.gray.withValues(alpha: 0.2),
+      );
+}
+
+class _StatItem extends StatelessWidget {
+  final int count;
+  final String label;
+  const _StatItem({required this.count, required this.label});
+
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$count',
+          style: GoogleFonts.ebGaramond(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: OlfatoTokens.plum,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            color: OlfatoTokens.gray,
+          ),
+        ),
+      ],
+    );
   }
 }
 
+// ─── TypeFilterTabs ───────────────────────────────────────────────────────────
 
-class _CollectionItem extends StatelessWidget {
+class _TypeFilterTabs extends StatelessWidget {
+  final CollectionItemType? selected;
+  final ValueChanged<CollectionItemType?> onSelected;
+
+  const _TypeFilterTabs({required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final tabs = [
+      (null, 'Todos'),
+      (CollectionItemType.perfume, 'Perfumes'),
+      (CollectionItemType.decant, 'Decantes'),
+      (CollectionItemType.amostra, 'Amostras'),
+      (CollectionItemType.jaTive, 'Já Tive'),
+    ];
+
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        itemCount: tabs.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final (type, label) = tabs[index];
+          final isActive = selected == type;
+
+          return GestureDetector(
+            onTap: () => onSelected(type),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isActive ? OlfatoTokens.plum : Colors.transparent,
+                borderRadius:
+                    BorderRadius.circular(OlfatoTokens.radiusControl),
+                border: Border.all(
+                  color: isActive
+                      ? OlfatoTokens.plum
+                      : OlfatoTokens.gray.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isActive ? Colors.white : OlfatoTokens.gray,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── FamilyFilterChips ────────────────────────────────────────────────────────
+
+class _FamilyFilterChips extends StatelessWidget {
+  final List<String> families;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  const _FamilyFilterChips({
+    required this.families,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  IconData _familyIcon(String family) {
+    final lower = family.toLowerCase();
+    if (lower.contains('floral')) return Icons.local_florist;
+    if (lower.contains('oriental')) return Icons.auto_awesome;
+    if (lower.contains('amadeirad')) return Icons.park;
+    if (lower.contains('cítric')) return Icons.wb_sunny;
+    if (lower.contains('aquátic') || lower.contains('fresh')) return Icons.water_drop;
+    if (lower.contains('aromátic')) return Icons.spa;
+    if (lower.contains('gourmand')) return Icons.cookie;
+    if (lower.contains('frut')) return Icons.apple;
+    if (lower.contains('chipre') || lower.contains('chypre')) return Icons.eco;
+    return Icons.blur_circular;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        itemCount: families.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final family = families[index];
+          final isActive = selected == family;
+
+          return GestureDetector(
+            onTap: () => onSelected(isActive ? null : family),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? OlfatoTokens.plum.withValues(alpha: 0.12)
+                    : OlfatoTokens.mist,
+                borderRadius:
+                    BorderRadius.circular(OlfatoTokens.radiusControl),
+                border: Border.all(
+                  color: isActive
+                      ? OlfatoTokens.plum
+                      : OlfatoTokens.borderLight,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _familyIcon(family),
+                    size: 14,
+                    color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    family,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight:
+                          isActive ? FontWeight.w600 : FontWeight.w400,
+                      color:
+                          isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── CollectionGrid ───────────────────────────────────────────────────────────
+
+class _CollectionGrid extends StatelessWidget {
+  final List<dynamic> items;
+  final String Function(String?) proxyUrl;
+  final ValueChanged<dynamic> onItemTap;
+
+  const _CollectionGrid({
+    required this.items,
+    required this.proxyUrl,
+    required this.onItemTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 80),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.72,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _CollectionGridItem(
+          item: item,
+          proxyUrl: proxyUrl,
+          onTap: () => onItemTap(item),
+        );
+      },
+    );
+  }
+}
+
+// ─── CollectionGridItem ───────────────────────────────────────────────────────
+
+class _CollectionGridItem extends StatelessWidget {
   final dynamic item;
   final String Function(String?) proxyUrl;
   final VoidCallback onTap;
 
-  const _CollectionItem({required this.item, required this.proxyUrl, required this.onTap});
+  const _CollectionGridItem({
+    required this.item,
+    required this.proxyUrl,
+    required this.onTap,
+  });
+
+  String _seasonLabel(Map<String, dynamic>? perfume) {
+    final seasonData = perfume?['season_data'] as List?;
+    if (seasonData == null || seasonData.isEmpty) return '';
+    // Find the season with highest percentage
+    String best = '';
+    num bestPct = 0;
+    for (final s in seasonData) {
+      final pct = (s['percentage'] as num?) ?? 0;
+      if (pct > bestPct) {
+        bestPct = pct;
+        best = s['name'] as String? ?? '';
+      }
+    }
+    return best;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final perfume = item['perfume'];
-    final userRating = item['rating'] as int?;
+    final perfume = item['perfume'] as Map<String, dynamic>?;
     final imageUrl = proxyUrl(perfume?['image_url'] as String?);
-    final family = perfume?['olfactory_family']?['name'] ?? '';
+    final name = perfume?['name'] as String? ?? '';
+    final brand = perfume?['brand'] as String? ?? '';
+    final family = perfume?['olfactory_family']?['name'] as String? ?? '';
+    final volume = perfume?['volume'] as String? ?? '';
+    final season = _seasonLabel(perfume);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        child: GlassCard(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  width: 52, height: 66,
-                  color: AppColors.surfaceLight,
+        decoration: BoxDecoration(
+          color: OlfatoTokens.mist,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          boxShadow: [OlfatoTokens.cardShadow],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            Expanded(
+              flex: 3,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(OlfatoTokens.radiusCard),
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(OlfatoTokens.radiusCard),
+                  ),
                   child: imageUrl.isNotEmpty
-                    ? Image.network(imageUrl, fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.local_florist, color: AppColors.gold, size: 20))
-                    : const Icon(Icons.local_florist, color: AppColors.gold, size: 20),
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => const Center(
+                            child: Icon(Icons.local_florist,
+                                color: OlfatoTokens.plum, size: 28),
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(Icons.local_florist,
+                              color: OlfatoTokens.plum, size: 28),
+                        ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(perfume?['name'] ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text(perfume?['brand'] ?? '',
-                    style: const TextStyle(color: AppColors.gold, fontSize: 12)),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                    if (userRating != null)
-                      ...List.generate(5, (i) => Icon(
-                        i < userRating ? Icons.star : Icons.star_border,
-                        color: AppColors.gold, size: 13))
-                    else
-                      const Text('Toque para avaliar', style: TextStyle(
-                        color: AppColors.textMuted, fontSize: 10, fontStyle: FontStyle.italic)),
-                    const Spacer(),
-                    if (family.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.gold.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4)),
-                        child: Text(family,
-                          style: const TextStyle(color: AppColors.gold, fontSize: 9)),
+            ),
+            // Info
+            Expanded(
+              flex: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: OlfatoTokens.ink,
                       ),
-                  ]),
-                ],
-              )),
-              const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
-            ],
-          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      brand,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: OlfatoTokens.plum,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Spacer(),
+                    // Volume + Family + Season row
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 3,
+                      children: [
+                        if (volume.isNotEmpty)
+                          _miniChip(volume),
+                        if (family.isNotEmpty)
+                          _miniChip(family),
+                        if (season.isNotEmpty)
+                          _miniChip(season),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: OlfatoTokens.plum.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 9,
+          color: OlfatoTokens.gray,
         ),
       ),
     );

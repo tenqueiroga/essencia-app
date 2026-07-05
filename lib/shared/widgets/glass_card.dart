@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../app/theme/app_colors.dart';
+import '../../app/theme/olfato_tokens.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -27,12 +27,14 @@ class GlassCard extends StatelessWidget {
         child: Container(
           padding: padding ?? const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: highlight ? AppColors.accentGlow : AppColors.surface,
+            color: highlight
+                ? OlfatoTokens.plum.withValues(alpha: 0.05)
+                : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
               color: highlight
-                ? AppColors.accent.withValues(alpha: 0.2)
-                : AppColors.border,
+                  ? OlfatoTokens.plum.withValues(alpha: 0.2)
+                  : OlfatoTokens.borderLight,
               width: 0.5),
           ),
           child: child,

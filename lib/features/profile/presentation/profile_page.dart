@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/olfato_tokens.dart';
+import '../../../app/theme/theme_notifier.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../shared/widgets/glass_card.dart';
@@ -50,22 +51,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               const SizedBox(height: 16),
               CircleAvatar(
                 radius: 40,
-                backgroundColor: AppColors.gold,
+                backgroundColor: OlfatoTokens.amber,
                 child: Text(
                   (user?['name'] ?? 'U')[0].toUpperCase(),
-                  style: const TextStyle(fontSize: 32, color: AppColors.background),
+                  style: const TextStyle(fontSize: 32, color: OlfatoTokens.vanilla),
                 ),
               ),
               const SizedBox(height: 12),
               Text(user?['name'] ?? 'Usuário',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-              Text(user?['email'] ?? '', style: const TextStyle(color: AppColors.textSecondary)),
+              Text(user?['email'] ?? '', style: const TextStyle(color: OlfatoTokens.gray)),
               if (user?['is_admin'] == true)
                 Container(
                   margin: const EdgeInsets.only(top: 6),
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: AppColors.gold.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
-                  child: const Text('ADMIN', style: TextStyle(color: AppColors.gold, fontSize: 10, fontWeight: FontWeight.bold)),
+                  decoration: BoxDecoration(color: OlfatoTokens.amber.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+                  child: const Text('ADMIN', style: TextStyle(color: OlfatoTokens.amber, fontSize: 10, fontWeight: FontWeight.bold)),
                 ),
               const SizedBox(height: 20),
 
@@ -86,7 +87,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   const Spacer(),
                   TextButton(
                     onPressed: () => _showAllBadges(),
-                    child: const Text('Ver Todos', style: TextStyle(color: AppColors.gold, fontSize: 12)),
+                    child: const Text('Ver Todos', style: TextStyle(color: OlfatoTokens.amber, fontSize: 12)),
                   ),
                 ]),
                 SizedBox(
@@ -104,15 +105,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           Container(
                             width: 48, height: 48,
                             decoration: BoxDecoration(
-                              color: unlocked ? AppColors.gold.withValues(alpha: 0.15) : AppColors.surfaceLight,
+                              color: unlocked ? OlfatoTokens.amber.withValues(alpha: 0.15) : OlfatoTokens.mist,
                               shape: BoxShape.circle,
-                              border: Border.all(color: unlocked ? AppColors.gold : AppColors.glassBorder)),
+                              border: Border.all(color: unlocked ? OlfatoTokens.amber : OlfatoTokens.borderLight)),
                             child: Icon(Icons.emoji_events,
-                              color: unlocked ? AppColors.gold : AppColors.textMuted, size: 22),
+                              color: unlocked ? OlfatoTokens.amber : OlfatoTokens.gray, size: 22),
                           ),
                           const SizedBox(height: 4),
                           Text(b['name'] ?? '', style: TextStyle(fontSize: 9,
-                            color: unlocked ? AppColors.textPrimary : AppColors.textMuted),
+                            color: unlocked ? OlfatoTokens.ink : OlfatoTokens.gray),
                             textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                         ]),
                       );
@@ -126,12 +127,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               GlassCard(
                 padding: EdgeInsets.zero,
                 child: Column(children: [
+                  _ThemeToggleTile(),
+                  const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.book_outlined, title: 'Diário Olfativo', onTap: () => context.go('/journal')),
-                  const Divider(color: AppColors.glassBorder, height: 1),
+                  const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.download_outlined, title: 'Exportar Meus Dados', onTap: _exportData),
-                  const Divider(color: AppColors.glassBorder, height: 1),
-                  _SettingsTile(icon: Icons.delete_forever_outlined, title: 'Excluir Conta', titleColor: AppColors.error, onTap: _deleteAccount),
-                  const Divider(color: AppColors.glassBorder, height: 1),
+                  const Divider(color: OlfatoTokens.borderLight, height: 1),
+                  _SettingsTile(icon: Icons.delete_forever_outlined, title: 'Excluir Conta', titleColor: OlfatoTokens.error, onTap: _deleteAccount),
+                  const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.logout, title: 'Sair', onTap: () {
                     ref.read(authProvider.notifier).logout();
                     context.go('/login');
@@ -150,26 +153,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       final response = await ApiClient().dio.get('/user/export');
       if (mounted) {
         showDialog(context: context, builder: (ctx) => AlertDialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: OlfatoTokens.mist,
           title: const Text('Dados Exportados'),
           content: SizedBox(
             width: double.maxFinite, height: 300,
             child: SingleChildScrollView(child: SelectableText(
               response.data.toString(),
-              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary))),
+              style: const TextStyle(fontSize: 11, color: OlfatoTokens.gray))),
           ),
           actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fechar'))],
         ));
       }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro ao exportar dados'), backgroundColor: AppColors.error));
+        const SnackBar(content: Text('Erro ao exportar dados'), backgroundColor: OlfatoTokens.error));
     }
   }
 
   void _deleteAccount() {
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: AppColors.surface,
+      backgroundColor: OlfatoTokens.mist,
       title: const Text('Excluir Conta?'),
       content: const Text('Seus dados serão removidos em até 30 dias. Esta ação não pode ser desfeita.'),
       actions: [
@@ -183,7 +186,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               if (mounted) context.go('/login');
             } catch (_) {}
           },
-          child: const Text('Excluir', style: TextStyle(color: AppColors.error)),
+          child: const Text('Excluir', style: TextStyle(color: OlfatoTokens.error)),
         ),
       ],
     ));
@@ -192,7 +195,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   void _showAllBadges() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: OlfatoTokens.mist,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => DraggableScrollableSheet(
@@ -201,7 +204,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           controller: scroll,
           padding: const EdgeInsets.all(24),
           children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2)))),
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: OlfatoTokens.gray, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 16),
             const Center(child: Text('Todas as Conquistas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
             const SizedBox(height: 16),
@@ -215,22 +218,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     Container(
                       width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: unlocked ? AppColors.gold.withValues(alpha: 0.15) : AppColors.surfaceLight,
+                        color: unlocked ? OlfatoTokens.amber.withValues(alpha: 0.15) : OlfatoTokens.mist,
                         shape: BoxShape.circle,
-                        border: Border.all(color: unlocked ? AppColors.gold : AppColors.glassBorder)),
-                      child: Icon(Icons.emoji_events, color: unlocked ? AppColors.gold : AppColors.textMuted, size: 20),
+                        border: Border.all(color: unlocked ? OlfatoTokens.amber : OlfatoTokens.borderLight)),
+                      child: Icon(Icons.emoji_events, color: unlocked ? OlfatoTokens.amber : OlfatoTokens.gray, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(b['name'] ?? '', style: TextStyle(fontWeight: FontWeight.bold,
-                          color: unlocked ? AppColors.textPrimary : AppColors.textMuted)),
-                        Text(b['description'] ?? '', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          color: unlocked ? OlfatoTokens.ink : OlfatoTokens.gray)),
+                        Text(b['description'] ?? '', style: const TextStyle(fontSize: 11, color: OlfatoTokens.gray)),
                       ],
                     )),
-                    if (unlocked) const Icon(Icons.check_circle, color: AppColors.gold, size: 20)
-                    else const Icon(Icons.lock_outline, color: AppColors.textMuted, size: 18),
+                    if (unlocked) const Icon(Icons.check_circle, color: OlfatoTokens.amber, size: 20)
+                    else const Icon(Icons.lock_outline, color: OlfatoTokens.gray, size: 18),
                   ]),
                 ),
               );
@@ -252,9 +255,9 @@ class _StatCard extends StatelessWidget {
     return GlassCard(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Column(children: [
-        Text(value, style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold, fontSize: 18)),
+        Text(value, style: const TextStyle(color: OlfatoTokens.amber, fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+        Text(label, style: const TextStyle(color: OlfatoTokens.gray, fontSize: 10)),
       ]),
     );
   }
@@ -270,10 +273,35 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: titleColor ?? AppColors.textSecondary),
+      leading: Icon(icon, color: titleColor ?? OlfatoTokens.gray),
       title: Text(title, style: TextStyle(color: titleColor)),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+      trailing: const Icon(Icons.chevron_right, color: OlfatoTokens.gray, size: 20),
       onTap: onTap,
+    );
+  }
+}
+
+class _ThemeToggleTile extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(themeProvider);
+    final isDark = mode == AppThemeMode.dark;
+
+    return ListTile(
+      leading: Icon(
+        isDark ? Icons.dark_mode : Icons.light_mode,
+        color: OlfatoTokens.gray,
+      ),
+      title: const Text('Modo Escuro'),
+      trailing: Switch.adaptive(
+        value: isDark,
+        activeTrackColor: OlfatoTokens.plum,
+        onChanged: (value) {
+          ref.read(themeProvider.notifier).setMode(
+            value ? AppThemeMode.dark : AppThemeMode.light,
+          );
+        },
+      ),
     );
   }
 }

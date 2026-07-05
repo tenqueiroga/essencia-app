@@ -7,11 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../app/theme/app_colors.dart';
+import 'package:go_router/go_router.dart';
+import 'package:frontend/app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 import '../../../shared/widgets/glass_card.dart';
-import '../../../shared/widgets/perfume_detail_sheet.dart';
 import '../../../shared/widgets/perfume_pyramid.dart';
+import '../../collection/presentation/type_selection_dialog.dart';
 
 class ExplorePage extends ConsumerStatefulWidget {
   final String? initialFamily;
@@ -142,13 +143,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              color: OlfatoTokens.surfaceDark,
+              borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
             ),
             child: const Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(color: AppColors.gold),
+                CircularProgressIndicator(color: OlfatoTokens.amber),
                 SizedBox(height: 16),
                 Text('Identificando perfume...',
                   style: TextStyle(color: Colors.white, fontSize: 14, decoration: TextDecoration.none)),
@@ -193,13 +194,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             (data['perfumes'] as List).map((p) => Map<String, dynamic>.from(p)));
           _showMultipleResults(perfumes, data['ai_name'] as String? ?? '');
         } else if (data['perfume'] != null) {
-          openPerfumeDetailSheet(context, data['perfume']);
+          context.push('/perfume/${data['perfume']['id']}');
         }
       } else {
         final msg = data['message'] as String? ?? 'Perfume não identificado';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(msg),
-          backgroundColor: AppColors.elevated,
+          backgroundColor: OlfatoTokens.surfaceDark,
           duration: const Duration(seconds: 4),
         ));
       }
@@ -215,7 +216,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(errorMsg),
-        backgroundColor: AppColors.error,
+        backgroundColor: OlfatoTokens.error,
         duration: const Duration(seconds: 4),
       ));
     }
@@ -246,13 +247,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                         children: [
                           if (_searchController.text.isNotEmpty)
                             IconButton(
-                              icon: const Icon(Icons.clear, size: 18, color: AppColors.textMuted),
+                              icon: Icon(Icons.clear, size: 18, color: Theme.of(context).colorScheme.outline),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() { _searchResults = []; });
                               }),
                           IconButton(
-                            icon: const Icon(Icons.camera_alt_rounded, size: 20, color: AppColors.gold),
+                            icon: const Icon(Icons.camera_alt_rounded, size: 20, color: OlfatoTokens.amber),
                             tooltip: 'Identificar perfume',
                             onPressed: _openScanner,
                           ),
@@ -268,7 +269,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             Expanded(
               child: _isSearching
                 ? const Center(child: CircularProgressIndicator(
-                    color: AppColors.gold))
+                    color: OlfatoTokens.amber))
                 : _searchResults.isNotEmpty
                   ? _buildSearchResults()
                   : _hasSearched
@@ -286,18 +287,19 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       child: Column(
         children: [
           const SizedBox(height: 40),
-          const Icon(Icons.search_off, color: AppColors.textMuted, size: 48),
+          Icon(Icons.search_off, color: Theme.of(context).colorScheme.outline, size: 48),
           const SizedBox(height: 12),
-          const Text('Nenhum perfume encontrado',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text('Nenhum perfume encontrado',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text('Tente buscar por outro nome ou marca',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 32),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Align(alignment: Alignment.centerLeft,
-              child: Text('DESTAQUES', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textMuted, letterSpacing: 1.5))),
+              child: Text('DESTAQUES', style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.outline, letterSpacing: 1.5))),
           ),
           const SizedBox(height: 12),
           _buildExploreContent(),
@@ -340,10 +342,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           spacing: 8, runSpacing: 8,
           children: families.map<Widget>((f) => ActionChip(
             avatar: CircleAvatar(
-              backgroundColor: AppColors.gold, radius: 8),
+              backgroundColor: OlfatoTokens.amber, radius: 8),
             label: Text('${f['name']} (${f['perfumes_count']})'),
-            backgroundColor: AppColors.surfaceLight,
-            side: const BorderSide(color: AppColors.glassBorder),
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+            side: BorderSide(color: Theme.of(context).dividerColor),
             onPressed: () {
               _searchController.text = f['name'];
               _smartSearch(f['name']);
@@ -370,8 +372,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(OlfatoTokens.radiusFeature))),
       builder: (ctx) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.3,
@@ -382,12 +384,12 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(children: [
-                Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2))),
+                Container(width: 40, height: 4, decoration: BoxDecoration(color: OlfatoTokens.gray, borderRadius: BorderRadius.circular(2))),
                 const SizedBox(height: 12),
                 Text('Encontramos ${perfumes.length} resultados para "$aiName"',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 4),
-                const Text('Selecione a versão correta:', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                Text('Selecione a versão correta:', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
               ]),
             ),
             Expanded(
@@ -401,32 +403,32 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     ? 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(p['image_url'])}'
                     : (p['image_url'] ?? '');
                   return GestureDetector(
-                    onTap: () { Navigator.pop(ctx); openPerfumeDetailSheet(context, p); },
+                    onTap: () { Navigator.pop(ctx); context.push('/perfume/${p['id']}'); },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.elevated, borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.glassBorder)),
+                        color: Theme.of(ctx).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                        border: Border.all(color: Theme.of(ctx).dividerColor)),
                       child: Row(children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
-                            width: 44, height: 56, color: AppColors.surfaceLight,
+                            width: 44, height: 56, color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
                             child: imageUrl.isNotEmpty
-                              ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold, size: 16))
-                              : const Icon(Icons.local_florist, color: AppColors.gold, size: 16),
+                              ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 16))
+                              : const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 16),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(p['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          Text(p['brand'] ?? '', style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                          Text(p['brand'] ?? '', style: const TextStyle(color: OlfatoTokens.amber, fontSize: 11)),
                           if (p['concentration'] != null || p['year_launched'] != null)
                             Text([if (p['concentration'] != null) p['concentration'], if (p['year_launched'] != null) '${p['year_launched']}'].join(' • '),
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                              style: TextStyle(color: Theme.of(ctx).colorScheme.outline, fontSize: 10)),
                         ])),
-                        const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 18),
+                        Icon(Icons.chevron_right, color: Theme.of(ctx).colorScheme.outline, size: 18),
                       ]),
                     ),
                   );
@@ -440,26 +442,28 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 
   void _showPerfumeDetail(dynamic perfume) {
-    openPerfumeDetailSheet(context, perfume, onAdded: () {
-      ref.invalidate(_collectionIdsProvider);
-    });
+    context.push('/perfume/${perfume['id']}');
   }
 
   Future<void> _addToCollection(dynamic perfume) async {
+    // Require type selection before adding
+    final selectedType = await showTypeSelectionDialog(context);
+    if (selectedType == null) return; // user dismissed
+
     try {
       await ApiClient().dio.post('/collection',
-        data: {'perfume_id': perfume['id']});
+        data: {'perfume_id': perfume['id'], 'type': selectedType.apiValue});
       ref.invalidate(_collectionIdsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('${perfume['name']} adicionado à coleção!'),
-          backgroundColor: AppColors.gold));
+          backgroundColor: OlfatoTokens.amber));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Perfume já está na coleção'),
-          backgroundColor: AppColors.error));
+          backgroundColor: OlfatoTokens.error));
       }
     }
   }
@@ -499,8 +503,8 @@ class _PerfumeCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: inCollection ? BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.gold, width: 1.5),
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.amber, width: 1.5),
         ) : null,
         child: GlassCard(
           padding: const EdgeInsets.all(12),
@@ -511,14 +515,14 @@ class _PerfumeCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   width: 64, height: 80,
-                  color: AppColors.surfaceLight,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: imageUrl.isNotEmpty
                     ? Image.network(imageUrl, fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => const Center(
                           child: Icon(Icons.local_florist,
-                            color: AppColors.gold, size: 24)))
+                            color: OlfatoTokens.amber, size: 24)))
                     : const Center(child: Icon(Icons.local_florist,
-                        color: AppColors.gold, size: 24)),
+                        color: OlfatoTokens.amber, size: 24)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -533,7 +537,7 @@ class _PerfumeCard extends StatelessWidget {
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),
                     Text(perfume['brand'] ?? '',
-                      style: const TextStyle(color: AppColors.gold,
+                      style: const TextStyle(color: OlfatoTokens.amber,
                         fontSize: 12)),
                     const SizedBox(height: 4),
                     Row(children: [
@@ -542,10 +546,10 @@ class _PerfumeCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.gold.withValues(alpha: 0.15),
+                            color: OlfatoTokens.amber.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4)),
                           child: Text(family,
-                            style: const TextStyle(color: AppColors.gold,
+                            style: const TextStyle(color: OlfatoTokens.amber,
                               fontSize: 10)),
                         ),
                       if (gender != null) ...[
@@ -555,19 +559,19 @@ class _PerfumeCard extends StatelessWidget {
                       ],
                       if (rating != null) ...[
                         const SizedBox(width: 6),
-                        const Icon(Icons.star, color: AppColors.gold, size: 12),
+                        const Icon(Icons.star, color: OlfatoTokens.amber, size: 12),
                         Text(' ${double.tryParse(rating.toString())?.toStringAsFixed(1) ?? rating}',
-                          style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                          style: const TextStyle(color: OlfatoTokens.amber, fontSize: 11)),
                       ],
                       if (inCollection) ...[
                         const Spacer(),
-                        const Icon(Icons.check_circle, color: AppColors.gold, size: 16),
+                        const Icon(Icons.check_circle, color: OlfatoTokens.amber, size: 16),
                       ],
                     ]),
                     const SizedBox(height: 4),
                     if (topNotes.isNotEmpty)
                       Text('♦ $topNotes',
-                        style: const TextStyle(color: AppColors.textSecondary,
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 11),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
@@ -576,7 +580,7 @@ class _PerfumeCard extends StatelessWidget {
               // Add button
               if (!inCollection)
                 IconButton(
-                  icon: const Icon(Icons.add_circle, color: AppColors.gold, size: 28),
+                  icon: const Icon(Icons.add_circle, color: OlfatoTokens.amber, size: 28),
                   onPressed: onAdd,
                 ),
             ],
@@ -632,7 +636,7 @@ class _PerfumeDetailSheet extends StatelessWidget {
         children: [
           // Handle
           Container(width: 40, height: 4,
-            decoration: BoxDecoration(color: AppColors.textMuted,
+            decoration: BoxDecoration(color: OlfatoTokens.gray,
               borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
 
@@ -640,12 +644,12 @@ class _PerfumeDetailSheet extends StatelessWidget {
           Container(
             width: 140, height: 180,
             decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.glassBorder),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+              border: Border.all(color: Theme.of(context).dividerColor),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
               child: imageUrl.isNotEmpty
                 ? Image.network(imageUrl, fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => _buildPlaceholder())
@@ -661,13 +665,13 @@ class _PerfumeDetailSheet extends StatelessWidget {
             textAlign: TextAlign.center),
           const SizedBox(height: 4),
           Text(perfume['brand'] ?? '',
-            style: const TextStyle(color: AppColors.gold, fontSize: 16)),
+            style: const TextStyle(color: OlfatoTokens.amber, fontSize: 16)),
 
           // Perfumer
           if (perfumer != null && perfumer.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text('por $perfumer',
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12,
+              style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 12,
                 fontStyle: FontStyle.italic)),
           ],
           const SizedBox(height: 12),
@@ -679,14 +683,14 @@ class _PerfumeDetailSheet extends StatelessWidget {
                 final r = double.tryParse(rating.toString()) ?? 0;
                 return Icon(
                   i < r.round() ? Icons.star : Icons.star_border,
-                  color: AppColors.gold, size: 20);
+                  color: OlfatoTokens.amber, size: 20);
               }),
               const SizedBox(width: 6),
               Text('${double.tryParse(rating.toString())?.toStringAsFixed(2)}',
-                style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold)),
+                style: const TextStyle(color: OlfatoTokens.amber, fontWeight: FontWeight.bold)),
               if (ratingCount != null)
                 Text(' ($ratingCount votos)',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                  style: TextStyle(color: Theme.of(context).colorScheme.outline, fontSize: 11)),
             ]),
             const SizedBox(height: 12),
           ],
@@ -734,7 +738,7 @@ class _PerfumeDetailSheet extends StatelessWidget {
           // Pyramid
           if (topNotes.isNotEmpty || heartNotes.isNotEmpty || baseNotes.isNotEmpty) ...[
             Text('PIRÂMIDE OLFATIVA',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted,
+              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.outline,
                 fontWeight: FontWeight.bold, letterSpacing: 2)),
             const SizedBox(height: 12),
             PerfumePyramid(
@@ -765,13 +769,13 @@ class _PerfumeDetailSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                     child: LinearProgressIndicator(
                       value: pct / 100,
-                      backgroundColor: AppColors.surfaceLight,
+                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       valueColor: AlwaysStoppedAnimation(color),
                       minHeight: 8),
                   )),
                   const SizedBox(width: 8),
-                  Text('$pct%', style: const TextStyle(fontSize: 11,
-                    color: AppColors.textMuted)),
+                  Text('$pct%', style: TextStyle(fontSize: 11,
+                    color: Theme.of(context).colorScheme.outline)),
                 ]),
               );
             }),
@@ -786,13 +790,13 @@ class _PerfumeDetailSheet extends StatelessWidget {
                   ?.copyWith(fontWeight: FontWeight.w600))),
             const SizedBox(height: 12),
             if (longevityData != null && longevityData.isNotEmpty) ...[
-              const Text('⏱ Longevidade', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Text('⏱ Longevidade', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(height: 6),
               _DetailedVoteChart(data: longevityData, color: const Color(0xFF4CAF50)),
               const SizedBox(height: 14),
             ],
             if (sillageData != null && sillageData.isNotEmpty) ...[
-              const Text('📡 Projeção (Sillage)', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Text('📡 Projeção (Sillage)', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(height: 6),
               _DetailedVoteChart(data: sillageData, color: const Color(0xFF2196F3)),
             ],
@@ -822,7 +826,7 @@ class _PerfumeDetailSheet extends StatelessWidget {
                   Text(s['name'] ?? '', style: const TextStyle(fontSize: 10)),
                   Text('${pct.toStringAsFixed(0)}%',
                     style: TextStyle(fontSize: 10,
-                      color: pct > 50 ? AppColors.gold : AppColors.textMuted,
+                      color: pct > 50 ? OlfatoTokens.amber : Theme.of(context).colorScheme.outline,
                       fontWeight: pct > 50 ? FontWeight.bold : FontWeight.normal)),
                 ]));
               }),
@@ -836,7 +840,7 @@ class _PerfumeDetailSheet extends StatelessWidget {
                   Text(icon, style: const TextStyle(fontSize: 18)),
                   Text('${t['name']} ${pct.toStringAsFixed(0)}%',
                     style: TextStyle(fontSize: 11,
-                      color: pct > 50 ? AppColors.gold : AppColors.textMuted)),
+                      color: pct > 50 ? OlfatoTokens.amber : Theme.of(context).colorScheme.outline)),
                 ]));
               }).toList()),
             ],
@@ -867,14 +871,14 @@ class _PerfumeDetailSheet extends StatelessWidget {
 
   Widget _buildPlaceholder() {
     return Container(
-      color: AppColors.surfaceLight,
+      color: OlfatoTokens.mist,
       child: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_florist, color: AppColors.gold, size: 40),
+            Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 40),
             SizedBox(height: 4),
-            Text('Sem foto', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+            Text('Sem foto', style: TextStyle(color: OlfatoTokens.gray, fontSize: 10)),
           ],
         ),
       ),
@@ -882,10 +886,10 @@ class _PerfumeDetailSheet extends StatelessWidget {
   }
 
   Color _parseColor(String? hex) {
-    if (hex == null || hex.isEmpty) return AppColors.gold;
+    if (hex == null || hex.isEmpty) return OlfatoTokens.amber;
     try {
       return Color(int.parse(hex.replaceFirst('#', '0xFF')));
-    } catch (_) { return AppColors.gold; }
+    } catch (_) { return OlfatoTokens.amber; }
   }
 }
 
@@ -896,7 +900,7 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.textSecondary;
+    final c = color ?? OlfatoTokens.gray;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -948,7 +952,7 @@ class _SimilarButtonState extends State<_SimilarButton> {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Erro ao buscar similares'),
-          backgroundColor: AppColors.error));
+          backgroundColor: OlfatoTokens.error));
       }
     }
   }
@@ -959,15 +963,15 @@ class _SimilarButtonState extends State<_SimilarButton> {
       onPressed: _loading ? null : _openSimilarPage,
       icon: _loading
         ? const SizedBox(width: 16, height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold))
+            child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.amber))
         : const Icon(Icons.compare_arrows),
       label: Text(_loading ? 'Buscando...' : 'Ver Similares'),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.textPrimary,
-        side: const BorderSide(color: AppColors.glassBorder),
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        side: BorderSide(color: Theme.of(context).dividerColor),
         padding: const EdgeInsets.symmetric(vertical: 14),
         minimumSize: const Size(double.infinity, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl))),
     );
   }
 }
@@ -994,11 +998,11 @@ class _SimilarPerfumesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         title: Text('Similares a $perfumeName',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           overflow: TextOverflow.ellipsis),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -1006,8 +1010,8 @@ class _SimilarPerfumesPage extends StatelessWidget {
         ),
       ),
       body: results.isEmpty
-        ? const Center(child: Text('Nenhum similar encontrado',
-            style: TextStyle(color: AppColors.textMuted)))
+        ? Center(child: Text('Nenhum similar encontrado',
+            style: TextStyle(color: Theme.of(context).colorScheme.outline)))
         : ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: results.length,
@@ -1020,12 +1024,12 @@ class _SimilarPerfumesPage extends StatelessWidget {
               final gender = s['gender'] as String?;
 
               return GestureDetector(
-                onTap: () => openPerfumeDetailSheet(context, s),
+                onTap: () => context.push('/perfume/${s['id']}'),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: inCollection ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.gold, width: 1.5),
+                    borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+                    border: Border.all(color: OlfatoTokens.amber, width: 1.5),
                   ) : null,
                   child: GlassCard(
                     padding: const EdgeInsets.all(12),
@@ -1036,13 +1040,13 @@ class _SimilarPerfumesPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
                             width: 56, height: 72,
-                            color: AppColors.surfaceLight,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             child: imageUrl.isNotEmpty
                               ? Image.network(imageUrl, fit: BoxFit.contain,
                                   errorBuilder: (_, __, ___) => const Center(
-                                    child: Icon(Icons.local_florist, color: AppColors.gold, size: 20)))
+                                    child: Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 20)))
                               : const Center(
-                                  child: Icon(Icons.local_florist, color: AppColors.gold, size: 20)),
+                                  child: Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 20)),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1056,17 +1060,17 @@ class _SimilarPerfumesPage extends StatelessWidget {
                                 maxLines: 1, overflow: TextOverflow.ellipsis),
                               const SizedBox(height: 3),
                               Text(s['brand'] ?? '',
-                                style: const TextStyle(color: AppColors.gold, fontSize: 12)),
+                                style: const TextStyle(color: OlfatoTokens.amber, fontSize: 12)),
                               const SizedBox(height: 6),
                               Row(children: [
                                 if (family.isNotEmpty)
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.gold.withValues(alpha: 0.12),
+                                      color: OlfatoTokens.amber.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(4)),
                                     child: Text(family,
-                                      style: const TextStyle(color: AppColors.gold, fontSize: 10)),
+                                      style: const TextStyle(color: OlfatoTokens.amber, fontSize: 10)),
                                   ),
                                 if (gender != null) ...[
                                   const SizedBox(width: 6),
@@ -1075,9 +1079,9 @@ class _SimilarPerfumesPage extends StatelessWidget {
                                 ],
                                 if (rating != null) ...[
                                   const SizedBox(width: 6),
-                                  const Icon(Icons.star, color: AppColors.gold, size: 12),
+                                  const Icon(Icons.star, color: OlfatoTokens.amber, size: 12),
                                   Text(' ${double.tryParse(rating.toString())?.toStringAsFixed(1) ?? rating}',
-                                    style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                                    style: const TextStyle(color: OlfatoTokens.amber, fontSize: 11)),
                                 ],
                               ]),
                             ],
@@ -1090,13 +1094,13 @@ class _SimilarPerfumesPage extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: AppColors.gold.withValues(alpha: 0.15),
+                                  color: OlfatoTokens.amber.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(6)),
                                 child: const Text('Na coleção',
-                                  style: TextStyle(color: AppColors.gold, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  style: TextStyle(color: OlfatoTokens.amber, fontSize: 9, fontWeight: FontWeight.bold)),
                               ),
                             const SizedBox(height: 4),
-                            const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 18),
+                            Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline, size: 18),
                           ],
                         ),
                       ],
@@ -1143,7 +1147,7 @@ class _PerfumeCameraPageState extends State<_PerfumeCameraPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Não foi possível acessar a câmera'),
-          backgroundColor: AppColors.error));
+          backgroundColor: OlfatoTokens.error));
         Navigator.pop(context);
       }
     }
@@ -1182,7 +1186,7 @@ class _PerfumeCameraPageState extends State<_PerfumeCameraPage> {
               child: CameraPreview(_cameraController!),
             )
           else
-            const Center(child: CircularProgressIndicator(color: AppColors.gold)),
+            const Center(child: CircularProgressIndicator(color: OlfatoTokens.amber)),
 
           // Viewfinder overlay
           Positioned.fill(
@@ -1254,7 +1258,7 @@ class _PerfumeCameraPageState extends State<_PerfumeCameraPage> {
                           margin: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: _isCapturing ? Colors.grey : AppColors.gold,
+                            color: _isCapturing ? Colors.grey : OlfatoTokens.amber,
                           ),
                           child: _isCapturing
                             ? const Center(child: SizedBox(width: 24, height: 24,
@@ -1363,7 +1367,7 @@ class _DetailedVoteChart extends StatelessWidget {
               SizedBox(width: 75, child: Text(name,
                 style: TextStyle(fontSize: 11,
                   fontWeight: isTop ? FontWeight.bold : FontWeight.normal,
-                  color: isTop ? color : AppColors.textSecondary))),
+                  color: isTop ? color : Theme.of(context).colorScheme.onSurfaceVariant))),
               Expanded(
                 child: Stack(
                   children: [
@@ -1371,7 +1375,7 @@ class _DetailedVoteChart extends StatelessWidget {
                     Container(
                       height: 18,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(4)),
                     ),
                     // Filled bar
@@ -1391,7 +1395,7 @@ class _DetailedVoteChart extends StatelessWidget {
               SizedBox(width: 36, child: Text('${pct.toStringAsFixed(0)}%',
                 style: TextStyle(fontSize: 11,
                   fontWeight: isTop ? FontWeight.bold : FontWeight.normal,
-                  color: isTop ? color : AppColors.textMuted),
+                  color: isTop ? color : Theme.of(context).colorScheme.outline),
                 textAlign: TextAlign.right)),
             ],
           ),
@@ -1422,18 +1426,18 @@ class _PerformanceBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(icon, size: 14, color: AppColors.gold),
+            Icon(icon, size: 14, color: OlfatoTokens.amber),
             const SizedBox(width: 4),
-            Text(label, style: const TextStyle(fontSize: 11,
-              color: AppColors.textSecondary)),
+            Text(label, style: TextStyle(fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ]),
           const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
               value: level,
-              backgroundColor: AppColors.surfaceLight,
-              valueColor: const AlwaysStoppedAnimation(AppColors.gold),
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              valueColor: const AlwaysStoppedAnimation(OlfatoTokens.amber),
               minHeight: 4),
           ),
           const SizedBox(height: 4),
@@ -1491,11 +1495,11 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.roseGold.withValues(alpha: 0.15),
+                    color: OlfatoTokens.pitanga.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4)),
                   child: Text(
                     (r['type'] ?? 'review').toString().toUpperCase(),
-                    style: const TextStyle(color: AppColors.roseGold, fontSize: 9, fontWeight: FontWeight.bold)),
+                    style: const TextStyle(color: OlfatoTokens.pitanga, fontSize: 9, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(child: Text(r['title'] ?? 'Review',
@@ -1510,10 +1514,10 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.gold.withValues(alpha: 0.15),
+                      color: OlfatoTokens.amber.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6)),
                     child: const Text('▶ Assistir',
-                      style: TextStyle(color: AppColors.gold, fontSize: 10, fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: OlfatoTokens.amber, fontSize: 10, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

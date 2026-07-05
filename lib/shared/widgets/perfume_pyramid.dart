@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../app/theme/app_colors.dart';
+import '../../app/theme/olfato_tokens.dart';
 
 class PerfumePyramid extends StatelessWidget {
   final List<dynamic> topNotes;
@@ -155,7 +155,7 @@ class _PyramidPainter extends CustomPainter {
     final borderPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5
-      ..color = AppColors.glassBorder;
+      ..color = OlfatoTokens.borderLight;
 
     canvas.drawLine(
       Offset(size.width * 0.3, size.height * 0.25),

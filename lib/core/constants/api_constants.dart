@@ -1,7 +1,7 @@
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'https://essencia.laravel.cloud/api';
+  static const String baseUrl = 'http://localhost:8000/api';
 
   // Auth
   static const String authGoogleRedirect = '/auth/google/redirect';

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../app/theme/app_colors.dart';
+import '../../app/theme/olfato_tokens.dart';
 import '../../core/network/api_client.dart';
-import 'glass_card.dart';
+import '../../features/collection/presentation/type_selection_dialog.dart';
 import 'perfume_pyramid.dart';
 
 /// Opens the full perfume detail sheet from any page.
@@ -22,7 +23,7 @@ Future<void> openPerfumeDetailSheet(BuildContext context, dynamic perfume, {Void
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: OlfatoTokens.vanilla,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => DraggableScrollableSheet(
@@ -47,7 +48,7 @@ Future<void> openPerfumeDetailSheet(BuildContext context, dynamic perfume, {Void
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Erro ao carregar perfume'), backgroundColor: AppColors.error));
+        content: Text('Erro ao carregar perfume'), backgroundColor: OlfatoTokens.error));
     }
     return;
   }
@@ -56,7 +57,7 @@ Future<void> openPerfumeDetailSheet(BuildContext context, dynamic perfume, {Void
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: AppColors.surface,
+    backgroundColor: OlfatoTokens.vanilla,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
     builder: (ctx) => DraggableScrollableSheet(
@@ -148,13 +149,13 @@ class _FullPerfumeDetail extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2))),
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: OlfatoTokens.gray, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
 
           // Image
           Container(
             width: 140, height: 180,
-            decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.glassBorder)),
+            decoration: BoxDecoration(color: OlfatoTokens.mist, borderRadius: BorderRadius.circular(16), border: Border.all(color: OlfatoTokens.borderLight)),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: imageUrl.isNotEmpty
@@ -167,20 +168,20 @@ class _FullPerfumeDetail extends StatelessWidget {
           // Name & brand
           Text(perfume['name'] ?? '', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
           const SizedBox(height: 4),
-          Text(perfume['brand'] ?? '', style: const TextStyle(color: AppColors.gold, fontSize: 16)),
+          Text(perfume['brand'] ?? '', style: const TextStyle(color: OlfatoTokens.amber, fontSize: 16)),
           if (perfumer != null && perfumer.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('por $perfumer', style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontStyle: FontStyle.italic)),
+            Text('por $perfumer', style: const TextStyle(color: OlfatoTokens.gray, fontSize: 12, fontStyle: FontStyle.italic)),
           ],
           const SizedBox(height: 12),
 
           // Rating
           if (rating != null)
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              ...List.generate(5, (i) => Icon(i < (double.tryParse(rating.toString()) ?? 0).round() ? Icons.star : Icons.star_border, color: AppColors.gold, size: 20)),
+              ...List.generate(5, (i) => Icon(i < (double.tryParse(rating.toString()) ?? 0).round() ? Icons.star : Icons.star_border, color: OlfatoTokens.amber, size: 20)),
               const SizedBox(width: 6),
-              Text('${double.tryParse(rating.toString())?.toStringAsFixed(2)}', style: const TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold)),
-              if (ratingCount != null) Text(' ($ratingCount)', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              Text('${double.tryParse(rating.toString())?.toStringAsFixed(2)}', style: const TextStyle(color: OlfatoTokens.amber, fontWeight: FontWeight.bold)),
+              if (ratingCount != null) Text(' ($ratingCount)', style: const TextStyle(color: OlfatoTokens.gray, fontSize: 11)),
             ]),
           const SizedBox(height: 12),
 
@@ -213,7 +214,7 @@ class _FullPerfumeDetail extends StatelessWidget {
 
           // Pyramid
           if (topNotes.isNotEmpty || heartNotes.isNotEmpty || baseNotes.isNotEmpty) ...[
-            const Text('PIRÂMIDE OLFATIVA', style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.bold, letterSpacing: 2)),
+            const Text('PIRÂMIDE OLFATIVA', style: TextStyle(fontSize: 11, color: OlfatoTokens.gray, fontWeight: FontWeight.bold, letterSpacing: 2)),
             const SizedBox(height: 12),
             PerfumePyramid(topNotes: topNotes, heartNotes: heartNotes, baseNotes: baseNotes),
             const SizedBox(height: 24),
@@ -228,9 +229,9 @@ class _FullPerfumeDetail extends StatelessWidget {
               final color = _parseColor(a['color'] as String?);
               return Padding(padding: const EdgeInsets.only(bottom: 6), child: Row(children: [
                 SizedBox(width: 90, child: Text(a['name_pt'] ?? a['name_en'] ?? '', style: const TextStyle(fontSize: 12))),
-                Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: pct / 100, backgroundColor: AppColors.surfaceLight, valueColor: AlwaysStoppedAnimation(color), minHeight: 8))),
+                Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(3), child: LinearProgressIndicator(value: pct / 100, backgroundColor: OlfatoTokens.mist, valueColor: AlwaysStoppedAnimation(color), minHeight: 8))),
                 const SizedBox(width: 8),
-                Text('$pct%', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                Text('$pct%', style: const TextStyle(fontSize: 11, color: OlfatoTokens.gray)),
               ]));
             }),
             const SizedBox(height: 20),
@@ -240,13 +241,13 @@ class _FullPerfumeDetail extends StatelessWidget {
           if (longevityData != null && longevityData.isNotEmpty) ...[
             Align(alignment: Alignment.centerLeft, child: Text('Performance', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
             const SizedBox(height: 8),
-            const Text('⏱ Longevidade', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            const Text('⏱ Longevidade', style: TextStyle(fontSize: 12, color: OlfatoTokens.gray)),
             const SizedBox(height: 4),
             _voteChart(longevityData, const Color(0xFF4CAF50)),
             const SizedBox(height: 10),
           ],
           if (sillageData != null && sillageData.isNotEmpty) ...[
-            const Text('📡 Projeção', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            const Text('📡 Projeção', style: TextStyle(fontSize: 12, color: OlfatoTokens.gray)),
             const SizedBox(height: 4),
             _voteChart(sillageData, const Color(0xFF2196F3)),
             const SizedBox(height: 20),
@@ -262,7 +263,7 @@ class _FullPerfumeDetail extends StatelessWidget {
               return Expanded(child: Column(children: [
                 Text(icon, style: const TextStyle(fontSize: 20)),
                 Text(s['name'] ?? '', style: const TextStyle(fontSize: 10)),
-                Text('${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 10, color: pct > 50 ? AppColors.gold : AppColors.textMuted, fontWeight: pct > 50 ? FontWeight.bold : FontWeight.normal)),
+                Text('${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 10, color: pct > 50 ? OlfatoTokens.amber : OlfatoTokens.gray, fontWeight: pct > 50 ? FontWeight.bold : FontWeight.normal)),
               ]));
             }).toList()),
             if (timeOfDay != null && timeOfDay.isNotEmpty) ...[
@@ -270,7 +271,7 @@ class _FullPerfumeDetail extends StatelessWidget {
               Row(children: timeOfDay.map<Widget>((t) {
                 final icon = t['name'] == 'Dia' ? '🌤️' : '🌙';
                 final pct = (t['percentage'] as num?) ?? 0;
-                return Expanded(child: Column(children: [Text(icon, style: const TextStyle(fontSize: 18)), Text('${t['name']} ${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 11, color: pct > 50 ? AppColors.gold : AppColors.textMuted))]));
+                return Expanded(child: Column(children: [Text(icon, style: const TextStyle(fontSize: 18)), Text('${t['name']} ${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 11, color: pct > 50 ? OlfatoTokens.amber : OlfatoTokens.gray))]));
               }).toList()),
             ],
             const SizedBox(height: 24),
@@ -281,7 +282,7 @@ class _FullPerfumeDetail extends StatelessWidget {
 
           const SizedBox(height: 16),
           // Divider
-          Container(height: 1, color: AppColors.glassBorder),
+          Container(height: 1, color: OlfatoTokens.borderLight),
           const SizedBox(height: 16),
 
           // Similar perfumes button
@@ -296,10 +297,10 @@ class _FullPerfumeDetail extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() => const Center(child: Icon(Icons.local_florist, color: AppColors.gold, size: 40));
+  Widget _placeholder() => const Center(child: Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 40));
 
   Widget _chip(String text, {Color? color}) {
-    final c = color ?? AppColors.textSecondary;
+    final c = color ?? OlfatoTokens.gray;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6), border: Border.all(color: c.withValues(alpha: 0.3))),
@@ -315,20 +316,20 @@ class _FullPerfumeDetail extends StatelessWidget {
       final pct = (item['percentage'] as num?) ?? 0;
       final isTop = pct == maxPct;
       return Padding(padding: const EdgeInsets.only(bottom: 3), child: Row(children: [
-        SizedBox(width: 75, child: Text(item['name'] ?? '', style: TextStyle(fontSize: 11, fontWeight: isTop ? FontWeight.bold : FontWeight.normal, color: isTop ? color : AppColors.textSecondary))),
+        SizedBox(width: 75, child: Text(item['name'] ?? '', style: TextStyle(fontSize: 11, fontWeight: isTop ? FontWeight.bold : FontWeight.normal, color: isTop ? color : OlfatoTokens.gray))),
         Expanded(child: Stack(children: [
-          Container(height: 16, decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(3))),
+          Container(height: 16, decoration: BoxDecoration(color: OlfatoTokens.mist, borderRadius: BorderRadius.circular(3))),
           FractionallySizedBox(widthFactor: pct / 100, child: Container(height: 16, decoration: BoxDecoration(color: color.withValues(alpha: isTop ? 0.7 : 0.3), borderRadius: BorderRadius.circular(3)))),
         ])),
         const SizedBox(width: 6),
-        SizedBox(width: 32, child: Text('${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 10, color: isTop ? color : AppColors.textMuted), textAlign: TextAlign.right)),
+        SizedBox(width: 32, child: Text('${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 10, color: isTop ? color : OlfatoTokens.gray), textAlign: TextAlign.right)),
       ]));
     }).toList());
   }
 
   Color _parseColor(String? hex) {
-    if (hex == null || hex.isEmpty) return AppColors.gold;
-    try { return Color(int.parse(hex.replaceFirst('#', '0xFF'))); } catch (_) { return AppColors.gold; }
+    if (hex == null || hex.isEmpty) return OlfatoTokens.amber;
+    try { return Color(int.parse(hex.replaceFirst('#', '0xFF'))); } catch (_) { return OlfatoTokens.amber; }
   }
 }
 
@@ -397,11 +398,9 @@ class _PriceSection extends StatelessWidget {
       return {...p, '_parsed_price': priceVal};
     }).where((p) => (p['_parsed_price'] as double) > 0).toList();
     parsedPrices.sort((a, b) {
-      // Época always first
       final aIsEpoca = a['source'] == 'epoca' ? 0 : 1;
       final bIsEpoca = b['source'] == 'epoca' ? 0 : 1;
       if (aIsEpoca != bIsEpoca) return aIsEpoca.compareTo(bIsEpoca);
-      // Then by price
       return (a['_parsed_price'] as double).compareTo(b['_parsed_price'] as double);
     });
 
@@ -428,7 +427,7 @@ class _PriceSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('ONDE COMPRAR', style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.bold, letterSpacing: 2)),
+        const Text('ONDE COMPRAR', style: TextStyle(fontSize: 11, color: OlfatoTokens.gray, fontWeight: FontWeight.bold, letterSpacing: 2)),
         const SizedBox(height: 8),
         ...parsedPrices.map((p) {
           final price = p['_parsed_price'] as double;
@@ -442,10 +441,10 @@ class _PriceSection extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: isLowest ? Colors.green.withValues(alpha: 0.08) : AppColors.surfaceLight,
+                color: isLowest ? Colors.green.withValues(alpha: 0.08) : OlfatoTokens.mist,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isLowest ? Colors.green.withValues(alpha: 0.3) : AppColors.glassBorder),
+                  color: isLowest ? Colors.green.withValues(alpha: 0.3) : OlfatoTokens.borderLight),
               ),
               child: Row(children: [
                 Text(_sourceIcon(source), style: const TextStyle(fontSize: 14)),
@@ -467,11 +466,11 @@ class _PriceSection extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: isLowest ? Colors.green : AppColors.textPrimary),
+                    color: isLowest ? Colors.green : OlfatoTokens.ink),
                 ),
                 if (url != null && url.isNotEmpty) ...[
                   const SizedBox(width: 6),
-                  const Icon(Icons.open_in_new, size: 12, color: AppColors.textMuted),
+                  const Icon(Icons.open_in_new, size: 12, color: OlfatoTokens.gray),
                 ],
               ]),
             ),
@@ -499,37 +498,32 @@ class _DupeTag extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (originalPerfume == null || originalPerfume!['id'] == null) return;
-        final overlayContext = Navigator.of(context).overlay?.context;
-        Navigator.of(context).pop();
-        if (overlayContext != null) {
-          Future.delayed(const Duration(milliseconds: 350), () {
-            openPerfumeDetailSheet(overlayContext, originalPerfume!);
-          });
-        }
+        Navigator.of(context).pop(); // close bottom sheet
+        context.push('/perfume/${originalPerfume!['id']}');
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.accent.withValues(alpha: 0.1),
+          color: OlfatoTokens.pitanga.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+          border: Border.all(color: OlfatoTokens.pitanga.withValues(alpha: 0.3)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.content_copy, size: 14, color: AppColors.accent),
+          const Icon(Icons.content_copy, size: 14, color: OlfatoTokens.pitanga),
           const SizedBox(width: 6),
           Flexible(child: Text('Dupe de $originalName ($originalBrand)',
-            style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w600),
+            style: const TextStyle(color: OlfatoTokens.pitanga, fontSize: 12, fontWeight: FontWeight.w600),
             overflow: TextOverflow.ellipsis)),
           if (accuracyScore != null && accuracyScore! > 0) ...[
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
-              child: Text('${accuracyScore}/10', style: const TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(color: OlfatoTokens.pitanga.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
+              child: Text('${accuracyScore}/10', style: const TextStyle(color: OlfatoTokens.pitanga, fontSize: 10, fontWeight: FontWeight.bold)),
             ),
           ],
           const SizedBox(width: 4),
-          const Icon(Icons.open_in_new, size: 10, color: AppColors.accent),
+          const Icon(Icons.open_in_new, size: 10, color: OlfatoTokens.pitanga),
         ]),
       ),
     );
@@ -576,13 +570,19 @@ class _CollectionButtonState extends State<_CollectionButton> {
   }
 
   Future<void> _addToCollection() async {
+    final selectedType = await showTypeSelectionDialog(context);
+    if (selectedType == null) return;
+
     try {
-      await ApiClient().dio.post('/collection', data: {'perfume_id': widget.perfumeId});
+      await ApiClient().dio.post('/collection', data: {
+        'perfume_id': widget.perfumeId,
+        'type': selectedType.apiValue,
+      });
       if (mounted) {
         setState(() => _inCollection = true);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('${widget.perfumeName} adicionado à coleção!'),
-          backgroundColor: AppColors.accent));
+          backgroundColor: OlfatoTokens.pitanga));
       }
     } catch (_) {
       if (mounted) setState(() => _inCollection = true);
@@ -596,7 +596,7 @@ class _CollectionButtonState extends State<_CollectionButton> {
         setState(() => _inWishlist = true);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('${widget.perfumeName} adicionado à lista de desejos!'),
-          backgroundColor: AppColors.gold));
+          backgroundColor: OlfatoTokens.amber));
       }
     } catch (_) {
       if (mounted) setState(() => _inWishlist = true);
@@ -615,16 +615,16 @@ class _CollectionButtonState extends State<_CollectionButton> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: AppColors.accent.withValues(alpha: 0.1),
+            color: OlfatoTokens.pitanga.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.accent.withValues(alpha: 0.3))),
+            border: Border.all(color: OlfatoTokens.pitanga.withValues(alpha: 0.3))),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.check_circle, color: AppColors.accent, size: 18),
+              Icon(Icons.check_circle, color: OlfatoTokens.pitanga, size: 18),
               SizedBox(width: 8),
               Text('Na sua coleção', style: TextStyle(
-                color: AppColors.accent, fontWeight: FontWeight.w600, fontSize: 14)),
+                color: OlfatoTokens.pitanga, fontWeight: FontWeight.w600, fontSize: 14)),
             ],
           ),
         ),
@@ -653,8 +653,8 @@ class _CollectionButtonState extends State<_CollectionButton> {
               icon: const Icon(Icons.favorite_border, size: 18),
               label: const Text('Lista de Desejos'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.gold,
-                side: BorderSide(color: AppColors.gold.withValues(alpha: 0.5)),
+                foregroundColor: OlfatoTokens.amber,
+                side: BorderSide(color: OlfatoTokens.amber.withValues(alpha: 0.5)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
@@ -665,16 +665,16 @@ class _CollectionButtonState extends State<_CollectionButton> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: AppColors.gold.withValues(alpha: 0.08),
+                color: OlfatoTokens.amber.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.gold.withValues(alpha: 0.3))),
+                border: Border.all(color: OlfatoTokens.amber.withValues(alpha: 0.3))),
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.favorite, color: AppColors.gold, size: 16),
+                  Icon(Icons.favorite, color: OlfatoTokens.amber, size: 16),
                   SizedBox(width: 8),
                   Text('Na lista de desejos', style: TextStyle(
-                    color: AppColors.gold, fontWeight: FontWeight.w600, fontSize: 13)),
+                    color: OlfatoTokens.amber, fontWeight: FontWeight.w600, fontSize: 13)),
                 ],
               ),
             ),
@@ -722,7 +722,7 @@ class _SimilarButtonSharedState extends State<_SimilarButtonShared> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Erro ao buscar similares'), backgroundColor: AppColors.error));
+          content: Text('Erro ao buscar similares'), backgroundColor: OlfatoTokens.error));
       }
     }
   }
@@ -734,12 +734,12 @@ class _SimilarButtonSharedState extends State<_SimilarButtonShared> {
       child: OutlinedButton.icon(
         onPressed: _loading ? null : _openSimilar,
         icon: _loading
-          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold))
+          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.amber))
           : const Icon(Icons.compare_arrows),
         label: Text(_loading ? 'Buscando...' : 'Ver Similares'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.glassBorder),
+          foregroundColor: OlfatoTokens.ink,
+          side: const BorderSide(color: OlfatoTokens.borderLight),
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
       ),
@@ -763,13 +763,13 @@ class _SimilarPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: OlfatoTokens.vanilla,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: OlfatoTokens.mist,
         title: Text('Similares a $perfumeName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
       ),
       body: results.isEmpty
-        ? const Center(child: Text('Nenhum similar encontrado', style: TextStyle(color: AppColors.textMuted)))
+        ? const Center(child: Text('Nenhum similar encontrado', style: TextStyle(color: OlfatoTokens.gray)))
         : ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: results.length,
@@ -779,39 +779,41 @@ class _SimilarPage extends StatelessWidget {
               final imageUrl = _proxyUrl(s['image_url'] as String?);
 
               return GestureDetector(
-                onTap: () => openPerfumeDetailSheet(context, s),
+                onTap: () {
+                  context.push('/perfume/${s['id']}');
+                },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
+                    color: OlfatoTokens.mist,
                     borderRadius: BorderRadius.circular(14),
-                    border: inCollection ? Border.all(color: AppColors.gold, width: 1.5) : Border.all(color: AppColors.glassBorder),
+                    border: inCollection ? Border.all(color: OlfatoTokens.amber, width: 1.5) : Border.all(color: OlfatoTokens.borderLight),
                   ),
                   child: Row(children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        width: 50, height: 64, color: AppColors.surfaceLight,
+                        width: 50, height: 64, color: OlfatoTokens.mist,
                         child: imageUrl.isNotEmpty
-                          ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold, size: 18))
-                          : const Icon(Icons.local_florist, color: AppColors.gold, size: 18),
+                          ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 18))
+                          : const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 18),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(s['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-                      Text(s['brand'] ?? '', style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                      Text(s['brand'] ?? '', style: const TextStyle(color: OlfatoTokens.amber, fontSize: 11)),
                       if (s['olfactory_family']?['name'] != null)
-                        Text(s['olfactory_family']['name'], style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                        Text(s['olfactory_family']['name'], style: const TextStyle(color: OlfatoTokens.gray, fontSize: 10)),
                     ])),
                     if (inCollection)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(color: AppColors.gold.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                        child: const Text('Na coleção', style: TextStyle(color: AppColors.gold, fontSize: 9, fontWeight: FontWeight.bold)),
+                        decoration: BoxDecoration(color: OlfatoTokens.amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
+                        child: const Text('Na coleção', style: TextStyle(color: OlfatoTokens.amber, fontSize: 9, fontWeight: FontWeight.bold)),
                       ),
-                    const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 16),
+                    const Icon(Icons.chevron_right, color: OlfatoTokens.gray, size: 16),
                   ]),
                 ),
               );
@@ -848,11 +850,10 @@ class _DupesButtonState extends State<_DupesButton> {
       if (dupes.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Sem dupes conhecidos para este perfume'),
-          backgroundColor: AppColors.elevated));
+          backgroundColor: OlfatoTokens.mist));
         return;
       }
 
-      // Open dupes page
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => _DupesPage(perfumeName: widget.perfumeName, dupes: dupes),
       ));
@@ -860,7 +861,7 @@ class _DupesButtonState extends State<_DupesButton> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Sem dupes disponíveis'), backgroundColor: AppColors.elevated));
+          content: Text('Sem dupes disponíveis'), backgroundColor: OlfatoTokens.mist));
       }
     }
   }
@@ -872,12 +873,12 @@ class _DupesButtonState extends State<_DupesButton> {
       child: OutlinedButton.icon(
         onPressed: _loading ? null : _openDupes,
         icon: _loading
-          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold))
+          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.amber))
           : const Icon(Icons.content_copy, size: 16),
         label: Text(_loading ? 'Buscando...' : 'Ver Dupes (clones)'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.glassBorder),
+          foregroundColor: OlfatoTokens.ink,
+          side: const BorderSide(color: OlfatoTokens.borderLight),
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
       ),
@@ -900,9 +901,9 @@ class _DupesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: OlfatoTokens.vanilla,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: OlfatoTokens.mist,
         title: Text('Dupes de $perfumeName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
       ),
       body: ListView.builder(
@@ -917,30 +918,29 @@ class _DupesPage extends StatelessWidget {
           final source = d['source'] as String? ?? '';
 
           if (perfume == null) {
-            // Not in our base — show text only
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.surface, borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.glassBorder)),
+                color: OlfatoTokens.mist, borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: OlfatoTokens.borderLight)),
               child: Row(children: [
                 Container(
                   width: 44, height: 44,
-                  decoration: BoxDecoration(color: AppColors.elevated, borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.local_florist, color: AppColors.textMuted, size: 18),
+                  decoration: BoxDecoration(color: OlfatoTokens.mist, borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.local_florist, color: OlfatoTokens.gray, size: 18),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(dupeName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text(dupeBrand, style: const TextStyle(color: AppColors.gold, fontSize: 11)),
-                  Text('Fonte: $source', style: const TextStyle(color: AppColors.textMuted, fontSize: 9)),
+                  Text(dupeBrand, style: const TextStyle(color: OlfatoTokens.amber, fontSize: 11)),
+                  Text('Fonte: $source', style: const TextStyle(color: OlfatoTokens.gray, fontSize: 9)),
                 ])),
                 if (accuracy != null)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                    child: Text('$accuracy/10', style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+                    decoration: BoxDecoration(color: OlfatoTokens.pitanga.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                    child: Text('$accuracy/10', style: const TextStyle(color: OlfatoTokens.pitanga, fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
               ]),
             );
@@ -948,13 +948,15 @@ class _DupesPage extends StatelessWidget {
 
           final imageUrl = _proxyUrl(perfume['image_url'] as String?);
           return GestureDetector(
-            onTap: () => openPerfumeDetailSheet(context, perfume),
+            onTap: () {
+              context.push('/perfume/${perfume['id']}');
+            },
             child: Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.surface, borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.accent.withValues(alpha: 0.2))),
+                color: OlfatoTokens.mist, borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: OlfatoTokens.pitanga.withValues(alpha: 0.2))),
               child: Row(children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -962,14 +964,14 @@ class _DupesPage extends StatelessWidget {
                     width: 50, height: 64, color: Colors.white,
                     padding: const EdgeInsets.all(4),
                     child: imageUrl.isNotEmpty
-                      ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold, size: 18))
-                      : const Icon(Icons.local_florist, color: AppColors.gold, size: 18),
+                      ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 18))
+                      : const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 18),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(perfume['name'] ?? dupeName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(perfume['brand'] ?? dupeBrand, style: const TextStyle(color: AppColors.gold, fontSize: 11)),
+                  Text(perfume['brand'] ?? dupeBrand, style: const TextStyle(color: OlfatoTokens.amber, fontSize: 11)),
                   if (perfume['average_price'] != null)
                     Text('R\$ ${double.tryParse(perfume['average_price'].toString())?.toStringAsFixed(0)}',
                       style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
@@ -978,11 +980,11 @@ class _DupesPage extends StatelessWidget {
                   if (accuracy != null)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                      child: Text('$accuracy/10', style: const TextStyle(color: AppColors.accent, fontSize: 11, fontWeight: FontWeight.bold)),
+                      decoration: BoxDecoration(color: OlfatoTokens.pitanga.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text('$accuracy/10', style: const TextStyle(color: OlfatoTokens.pitanga, fontSize: 11, fontWeight: FontWeight.bold)),
                     ),
                   const SizedBox(height: 4),
-                  const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 16),
+                  const Icon(Icons.chevron_right, color: OlfatoTokens.gray, size: 16),
                 ]),
               ]),
             ),

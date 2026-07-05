@@ -2,13 +2,45 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../app/theme/app_colors.dart';
+import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/location_service.dart';
-import '../../../shared/widgets/glass_card.dart';
-import '../../../shared/widgets/perfume_detail_sheet.dart';
+
+// ─── Pure helper functions (exported for testing) ─────────────────────────────
+
+/// Always returns 👋 emoji (prototype standard).
+String getTimeOfDayEmoji(int hour) {
+  return '👋';
+}
+
+/// Returns perfume family suggestion based on temperature in °C.
+String getWeatherFamily(double temp) {
+  if (temp >= 30) return 'Cítrica/Aquática';
+  if (temp >= 25) return 'Fresca/Cítrica';
+  if (temp >= 20) return 'Floral/Aromática';
+  if (temp >= 15) return 'Amadeirada/Oriental';
+  return 'Oriental/Gourmand';
+}
+
+/// Returns descriptive weather text based on temperature.
+String getWeatherDescription(double? temp) {
+  if (temp == null) return 'Fragrâncias versáteis para qualquer momento do dia.';
+  if (temp >= 30) return 'Quente e ensolarado. Perfeito para cítricos, aquáticos e notas frescas.';
+  if (temp >= 25) return 'Agradável e morno. Combina com perfumes frescos e cítricos leves.';
+  if (temp >= 20) return 'Clima ameno. Ideal para florais, aromáticos e madeiras suaves.';
+  if (temp >= 15) return 'Friozinho chegando. Hora de amadeirados e orientais.';
+  return 'Frio intenso. Aposte em orientais, gourmands e madeiras.';
+}
+
+/// Returns the first character of a name, uppercased.
+/// Returns 'U' for empty strings.
+String getAvatarLetter(String name) {
+  if (name.isEmpty) return 'U';
+  return name[0].toUpperCase();
+}
+
+// ─── HomePage ─────────────────────────────────────────────────────────────────
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -16,143 +48,25 @@ class HomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
-    final userName = (authState.user?['name'] ?? 'Perfumista').toString().split(' ').first;
+    final userName = (authState.user?['name'] ?? 'Perfumista')
+        .toString()
+        .split(' ')
+        .first;
 
     return Scaffold(
+      backgroundColor: OlfatoTokens.vanilla,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo + avatar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                child: Row(
-                  children: [
-                    // Logo mark
-                    Container(
-                      width: 32, height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [AppColors.accent, AppColors.gold]),
-                      ),
-                      child: Center(child: Text('E',
-                        style: GoogleFonts.bodoniModa(
-                          fontSize: 16, fontWeight: FontWeight.w900,
-                          color: AppColors.background))),
-                    ),
-                    const SizedBox(width: 10),
-                    Text('ESSÊNCIA',
-                      style: GoogleFonts.bodoniModa(
-                        fontSize: 20, fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary, letterSpacing: 1)),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => context.go('/profile'),
-                      child: Container(
-                        width: 36, height: 36,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: AppColors.surface,
-                          border: Border.all(color: AppColors.border)),
-                        child: Center(child: Text(
-                          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600,
-                            color: AppColors.accent))),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Greeting
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RichText(text: TextSpan(
-                      style: Theme.of(context).textTheme.headlineMedium,
-                      children: [
-                        const TextSpan(text: 'Encontre sua\n'),
-                        TextSpan(text: 'essência ', style: TextStyle(color: AppColors.accent)),
-                        const TextSpan(text: 'de hoje'),
-                      ],
-                    )),
-                    const SizedBox(height: 4),
-                    const Text('Baseado no seu perfil e no momento',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                  ],
-                ),
-              ),
+              _GreetingHeader(userName: userName),
               const SizedBox(height: 24),
-
-              // Weather card
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _WeatherCard(),
-              ),
-              const SizedBox(height: 20),
-
-              // Suggestion
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _SuggestionCard(),
-              ),
+              const _WeatherCard(),
               const SizedBox(height: 28),
-
-              // Quick actions
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionLabel('ACESSO RÁPIDO'),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      _QuickTile(icon: Icons.auto_awesome, label: 'Essence AI',
-                        color: AppColors.accent, onTap: () => context.go('/chat')),
-                      const SizedBox(width: 10),
-                      _QuickTile(icon: Icons.search_rounded, label: 'Explorar',
-                        color: AppColors.gold, onTap: () => context.go('/explore')),
-                      const SizedBox(width: 10),
-                      _QuickTile(icon: Icons.book_outlined, label: 'Diário',
-                        color: AppColors.success, onTap: () => context.go('/journal')),
-                      const SizedBox(width: 10),
-                      _QuickTile(icon: Icons.camera_alt_rounded, label: 'Identificar',
-                        color: const Color(0xFF9B7AE8), onTap: () => context.go('/explore?scan=true')),
-                    ]),
-                  ],
-                ),
-              ),
+              const _CompatibilitySection(),
               const SizedBox(height: 28),
-
-              // Feed do influencer
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: const _SectionLabel('ÚLTIMOS REVIEWS'),
-              ),
-              const SizedBox(height: 12),
-              _FeedSection(),
-              const SizedBox(height: 28),
-
-              // Dupes highlight (replaces populares)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: const _SectionLabel('DUPES — MESMA ESSÊNCIA, MENOR PREÇO'),
-              ),
-              const SizedBox(height: 12),
-              _DupesSection(),
-              const SizedBox(height: 28),
-
-              // Affordable perfumes
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: const _SectionLabel('TOP ATÉ R\$300'),
-              ),
-              const SizedBox(height: 12),
-              _AffordableSection(),
+              const _AuraCTA(),
               const SizedBox(height: 80),
             ],
           ),
@@ -162,46 +76,79 @@ class HomePage extends ConsumerWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(
-      fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textMuted,
-      letterSpacing: 1.5));
-  }
-}
+// ─── GreetingHeader ───────────────────────────────────────────────────────────
 
-class _QuickTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _QuickTile({required this.icon, required this.label, required this.color, required this.onTap});
+class _GreetingHeader extends StatelessWidget {
+  final String userName;
+  const _GreetingHeader({required this.userName});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(child: GestureDetector(
-      onTap: onTap,
-      child: Column(children: [
-        Container(
-          width: 52, height: 52,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withValues(alpha: 0.15))),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const SizedBox(height: 6),
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-      ]),
-    ));
+    final letter = getAvatarLetter(userName);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Olá, $userName 👋',
+                  style: GoogleFonts.ebGaramond(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: OlfatoTokens.ink,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Que bom ter vc por aqui.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: OlfatoTokens.gray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () => context.go('/profile'),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: OlfatoTokens.plum.withValues(alpha: 0.12),
+                border: Border.all(
+                  color: OlfatoTokens.plum.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  letter,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: OlfatoTokens.plum,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
+// ─── WeatherCard ──────────────────────────────────────────────────────────────
 
 class _WeatherCard extends StatefulWidget {
+  const _WeatherCard();
+
   @override
   State<_WeatherCard> createState() => _WeatherCardState();
 }
@@ -217,273 +164,99 @@ class _WeatherCardState extends State<_WeatherCard> {
   }
 
   Future<void> _loadWeather() async {
-    final weather = await LocationService.updateWeather();
-    if (mounted) {
-      setState(() {
-        _weather = weather;
-        _loading = false;
-      });
+    try {
+      final weather = await LocationService.updateWeather();
+      if (mounted) {
+        setState(() {
+          _weather = weather;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
     }
-  }
-
-  String _getWeatherIcon(String? condition) {
-    return switch (condition) {
-      'Clear' => '☀️',
-      'Cloudy' => '☁️',
-      'Fog' => '🌫️',
-      'Drizzle' => '🌦️',
-      'Rain' => '🌧️',
-      'Snow' => '❄️',
-      'Thunderstorm' => '⛈️',
-      _ => '🌤️',
-    };
-  }
-
-  String _getRecommendedFamily(double? temp, String? condition) {
-    if (temp == null) return 'Aromática';
-    if (temp >= 30) return 'Cítrica ou Aquática';
-    if (temp >= 25) return 'Fresca ou Cítrica';
-    if (temp >= 20) return 'Floral ou Aromática';
-    if (temp >= 15) return 'Amadeirada ou Oriental';
-    return 'Oriental ou Gourmand';
-  }
-
-  String _getRecommendationReason(double? temp, String? condition) {
-    if (temp == null) return 'Fragrâncias versáteis para qualquer momento';
-    if (temp >= 30) return 'Dia quente pede frescor e leveza';
-    if (temp >= 25) return 'Clima agradável para notas frescas';
-    if (temp >= 20) return 'Temperatura ideal para florais equilibrados';
-    if (temp >= 15) return 'Clima ameno combina com madeiras suaves';
-    return 'Frio pede fragrâncias envolventes e quentes';
-  }
-
-  String _getSearchFamily(double? temp) {
-    if (temp == null) return 'Aromática';
-    if (temp >= 30) return 'Cítrica';
-    if (temp >= 25) return 'Fresca';
-    if (temp >= 20) return 'Floral';
-    if (temp >= 15) return 'Amadeirada';
-    return 'Oriental';
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return Container(
-        height: 70,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(
-          child: SizedBox(
-            width: 16, height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.gold),
-          ),
-        ),
-      );
-    }
+    if (_loading) return const SizedBox.shrink();
 
-    if (_weather == null) return const SizedBox.shrink();
+    final temp = (_weather?['temperature'] as num?)?.toDouble();
+    final city = _weather?['city'] as String?;
+    final state = _weather?['state'] as String?;
+    final description = getWeatherDescription(temp);
 
-    final temp = (_weather!['temperature'] as num?)?.toDouble();
-    final condition = _weather!['condition'] as String?;
-    final description = _weather!['description'] as String? ?? '';
-    final icon = _getWeatherIcon(condition);
-    final family = _getRecommendedFamily(temp, condition);
-    final reason = _getRecommendationReason(temp, condition);
-    final searchFamily = _getSearchFamily(temp);
-
-    return GestureDetector(
-      onTap: () => context.go('/explore?family=$searchFamily'),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.gold.withValues(alpha: 0.08),
-            AppColors.surface,
-          ],
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: OlfatoTokens.mist,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.borderLight),
         ),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          // Weather icon + temp
-          Column(
-            children: [
-              Text(icon, style: const TextStyle(fontSize: 28)),
-              const SizedBox(height: 4),
-              Text(
-                temp != null ? '${temp.round()}°C' : '--',
-                style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          // Info
-          Expanded(
-            child: Column(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  description,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  reason,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.gold.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
+                // Left: sun icon + temperature
+                if (temp != null) ...[
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.wb_sunny_rounded,
+                        color: OlfatoTokens.amber,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${temp.round()}°',
+                        style: GoogleFonts.inter(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: OlfatoTokens.ink,
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(width: 14),
+                ],
+                // Right: descriptive text
+                Expanded(
                   child: Text(
-                    '✦ Ideal: $family',
-                    style: const TextStyle(color: AppColors.gold, fontSize: 11, fontWeight: FontWeight.w600),
+                    description,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: OlfatoTokens.ink,
+                      height: 1.4,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-}
-
-
-class _SuggestionCard extends StatefulWidget {
-  @override
-  State<_SuggestionCard> createState() => _SuggestionCardState();
-}
-
-class _SuggestionCardState extends State<_SuggestionCard> {
-  Map<String, dynamic>? _data;
-  bool _loading = true;
-
-  @override
-  void initState() { super.initState(); _load(); }
-
-  Future<void> _load() async {
-    try {
-      final response = await ApiClient().dio.get('/suggestions/seasonal');
-      if (mounted) setState(() { _data = response.data; _loading = false; });
-    } catch (_) { if (mounted) setState(() => _loading = false); }
-  }
-
-  String _proxyImg(String? url) {
-    if (url == null || url.isEmpty) return '';
-    if (url.contains('fimgs.net')) return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
-    return url;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return Container(
-      height: 100, decoration: BoxDecoration(
-        color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
-      child: const Center(child: CircularProgressIndicator(
-        color: AppColors.accent, strokeWidth: 2)),
-    );
-
-    final suggestion = _data?['suggestion'] as Map<String, dynamic>?;
-    if (suggestion == null) {
-      return Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.surface, borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border)),
-        child: const Row(children: [
-          Icon(Icons.local_florist, color: AppColors.accent, size: 22),
-          SizedBox(width: 12),
-          Expanded(child: Text(
-            'Adicione perfumes e classifique por estação para receber sugestões.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12))),
-        ]),
-      );
-    }
-
-    final perfume = suggestion['perfume'] as Map<String, dynamic>?;
-    final reason = suggestion['reason'] as String? ?? '';
-    final imgUrl = _proxyImg(perfume?['image_url'] as String?);
-
-    return GestureDetector(
-      onTap: () { if (perfume != null) openPerfumeDetailSheet(context, perfume); },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [AppColors.elevated, AppColors.surface]),
-          border: Border.all(color: AppColors.border)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top label
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
-              child: Row(children: [
-                Container(width: 6, height: 6,
-                  decoration: const BoxDecoration(
-                    color: AppColors.accent, shape: BoxShape.circle)),
-                const SizedBox(width: 6),
-                const Text('PARA AGORA', style: TextStyle(
-                  fontSize: 9, fontWeight: FontWeight.w600,
-                  color: AppColors.accent, letterSpacing: 1)),
-              ]),
-            ),
-            // Body
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
-              child: Row(children: [
-                Container(
-                  width: 54, height: 68,
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(10)),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: imgUrl.isNotEmpty
-                      ? Image.network(imgUrl, fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.local_florist, color: AppColors.accent, size: 22))
-                      : const Icon(Icons.local_florist, color: AppColors.accent, size: 22),
+            // Location below
+            if (city != null && state != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: OlfatoTokens.gray,
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(perfume?['name'] ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                    const SizedBox(height: 2),
-                    Text(perfume?['brand'] ?? '',
-                      style: const TextStyle(color: AppColors.gold, fontSize: 11, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(6)),
-                      child: Text('✦ $reason',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$city, $state',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: OlfatoTokens.gray,
                     ),
-                  ],
-                )),
-                const Icon(Icons.arrow_forward_ios_rounded,
-                  color: AppColors.textMuted, size: 14),
-              ]),
-            ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -491,333 +264,354 @@ class _SuggestionCardState extends State<_SuggestionCard> {
   }
 }
 
+// ─── CompatibilitySection (3-column row) ──────────────────────────────────────
 
-class _DupesSection extends StatefulWidget {
+class _CompatibilitySection extends StatefulWidget {
+  const _CompatibilitySection();
+
   @override
-  State<_DupesSection> createState() => _DupesSectionState();
+  State<_CompatibilitySection> createState() => _CompatibilitySectionState();
 }
 
-class _DupesSectionState extends State<_DupesSection> {
-  List<dynamic> _items = [];
+class _CompatibilitySectionState extends State<_CompatibilitySection> {
+  List<dynamic> _suggestions = [];
+  bool _loading = true;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _loadSuggestions();
+  }
 
-  Future<void> _load() async {
+  Future<void> _loadSuggestions() async {
     try {
-      final response = await ApiClient().dio.get('/perfumes/dupes-highlight');
-      if (mounted) setState(() => _items = response.data as List<dynamic>);
-    } catch (_) {}
-  }
-
-  String _proxyImg(String? url) {
-    if (url == null || url.isEmpty) return '';
-    if (url.contains('fimgs.net')) return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
-    return url;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_items.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: 200,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _items.length,
-        itemBuilder: (_, i) {
-          final item = _items[i];
-          final dupe = item['dupe'] as Map<String, dynamic>?;
-          final originalName = item['original_name'] as String? ?? '';
-          final accuracy = item['accuracy_score'];
-          if (dupe == null) return const SizedBox.shrink();
-          final img = _proxyImg(dupe['image_url'] as String?);
-          final price = dupe['average_price'];
-
-          return GestureDetector(
-            onTap: () => openPerfumeDetailSheet(context, dupe),
-            child: Container(
-              width: 150,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                    child: Container(
-                      height: 95, width: double.infinity,
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(8),
-                      child: img.isNotEmpty
-                        ? Image.network(img, fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
-                        : const Icon(Icons.local_florist, color: AppColors.gold),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(7),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(dupe['name'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text(dupe['brand'] ?? '', style: const TextStyle(fontSize: 9, color: AppColors.gold),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 3),
-                        Row(children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(3)),
-                            child: Text('Dupe de $originalName', style: const TextStyle(fontSize: 8, color: AppColors.accent), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ),
-                          if (accuracy != null) ...[
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                              decoration: BoxDecoration(color: AppColors.gold.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(3)),
-                              child: Text('$accuracy/10', style: const TextStyle(fontSize: 8, color: AppColors.gold, fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ]),
-                        if (price != null) ...[
-                          const SizedBox(height: 2),
-                          Text('R\$ ${double.tryParse(price.toString())?.toStringAsFixed(0) ?? price}',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green)),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-
-class _AffordableSection extends StatefulWidget {
-  @override
-  State<_AffordableSection> createState() => _AffordableSectionState();
-}
-
-class _AffordableSectionState extends State<_AffordableSection> {
-  List<dynamic> _items = [];
-
-  @override
-  void initState() { super.initState(); _load(); }
-
-  Future<void> _load() async {
-    try {
-      final response = await ApiClient().dio.get('/perfumes/affordable');
-      if (mounted) setState(() => _items = response.data as List<dynamic>);
-    } catch (_) {}
-  }
-
-  String _proxyImg(String? url) {
-    if (url == null || url.isEmpty) return '';
-    if (url.contains('fimgs.net')) return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
-    return url;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_items.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: 210,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _items.length,
-        itemBuilder: (_, i) {
-          final p = _items[i];
-          final img = _proxyImg(p['image_url'] as String?);
-          final price = p['average_price'];
-          return GestureDetector(
-            onTap: () => openPerfumeDetailSheet(context, p),
-            child: Container(
-              width: 140,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                    child: Container(
-                      height: 120, width: double.infinity,
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(10),
-                      child: img.isNotEmpty
-                        ? Image.network(img, fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: AppColors.gold))
-                        : const Icon(Icons.local_florist, color: AppColors.gold),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(p['name'] ?? '', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text(p['brand'] ?? '', style: const TextStyle(fontSize: 10, color: AppColors.gold),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 4),
-                        if (price != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4)),
-                            child: Text('R\$ ${double.tryParse(price.toString())?.toStringAsFixed(0) ?? price}',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-
-class _FeedSection extends StatefulWidget {
-  const _FeedSection();
-  @override
-  State<_FeedSection> createState() => _FeedSectionState();
-}
-
-class _FeedSectionState extends State<_FeedSection> {
-  List<dynamic> _feedItems = [];
-
-  @override
-  void initState() { super.initState(); _load(); }
-
-  Future<void> _load() async {
-    try {
-      final response = await ApiClient().dio.get('/feed');
-      if (mounted) setState(() => _feedItems = response.data as List<dynamic>);
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_feedItems.isEmpty) return const SizedBox.shrink();
-
-    String _proxyThumb(String? url) {
-      if (url == null || url.isEmpty) return '';
-      // Local storage path
-      if (url.startsWith('/storage/')) {
-        return 'https://essencia.laravel.cloud$url';
+      final response =
+          await ApiClient().dio.get('/suggestions/compatibility');
+      if (mounted) {
+        final data = response.data;
+        final list = data is List ? data : (data is Map ? (data['perfumes'] as List? ?? []) : []);
+        setState(() {
+          _suggestions = list;
+          _loading = false;
+        });
       }
-      // Instagram CDN or other external URLs — proxy them
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  String _proxyImg(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.contains('fimgs.net')) {
       return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
+    return url;
+  }
 
-    return SizedBox(
-      height: 300,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _feedItems.length,
-        itemBuilder: (_, i) {
-          final item = _feedItems[i];
-          return GestureDetector(
-            onTap: () {
-              final url = item['instagram_url'] as String?;
-              if (url != null) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-            },
-            child: Container(
-              width: 280,
-              margin: const EdgeInsets.only(right: 12),
-              child: GlassCard(
-                padding: const EdgeInsets.all(0),
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            'O que combina com hoje?',
+            style: GoogleFonts.ebGaramond(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: OlfatoTokens.ink,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: SizedBox(
+              height: 180,
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: OlfatoTokens.plum,
+                  ),
+                ),
+              ),
+            ),
+          )
+        else if (_suggestions.isEmpty)
+          _buildEmptyState()
+        else
+          _buildThreeColumnRow(),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: OlfatoTokens.mist,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.borderLight),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.local_florist_outlined,
+                  color: OlfatoTokens.plum.withValues(alpha: 0.6),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Adicione perfumes à sua coleção para receber sugestões do que combina com o seu dia.',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: OlfatoTokens.gray,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => context.go('/explore'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: OlfatoTokens.plum,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                  ),
+                ),
+                child: Text(
+                  'Explorar Perfumes',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThreeColumnRow() {
+    // Show only first 3 suggestions
+    final items = _suggestions.take(3).toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: items.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value as Map<String, dynamic>;
+          final perfume = item['perfume'] as Map<String, dynamic>? ?? item;
+          final name = perfume['name'] as String? ?? '';
+          final brand = perfume['brand'] as String? ?? '';
+          final imageUrl = _proxyImg(perfume['image_url'] as String?);
+          final score =
+              (item['compatibility_score'] ?? item['score'] ?? 0) as num;
+          final perfumeId = perfume['id']?.toString() ?? '';
+
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: index == 0 ? 0 : 6,
+                right: index == items.length - 1 ? 0 : 6,
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  if (perfumeId.isNotEmpty) {
+                    context.go('/perfume/$perfumeId');
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.circular(OlfatoTokens.radiusCard),
+                    border: Border.all(color: OlfatoTokens.borderLight),
+                    boxShadow: [
+                      BoxShadow(
+                        offset: const Offset(0, 4),
+                        blurRadius: 12,
+                        color: OlfatoTokens.ink.withValues(alpha: 0.06),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 14,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Circular image
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: OlfatoTokens.mist,
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: imageUrl.isNotEmpty
+                              ? Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.local_florist,
+                                    color: OlfatoTokens.plum,
+                                    size: 28,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.local_florist,
+                                  color: OlfatoTokens.plum,
+                                  size: 28,
+                                ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Name
+                        Text(
+                          name,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: OlfatoTokens.ink,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 2),
+                        // Brand
+                        Text(
+                          brand,
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: OlfatoTokens.gray,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        // Match badge (green)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: OlfatoTokens.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${score.toInt()}% match',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: OlfatoTokens.green,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// ─── AuraCTA ──────────────────────────────────────────────────────────────────
+
+class _AuraCTA extends StatelessWidget {
+  const _AuraCTA();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: GestureDetector(
+        onTap: () => context.go('/chat'),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: OlfatoTokens.mist,
+            borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+            border: Border.all(color: OlfatoTokens.borderLight),
+          ),
+          child: Row(
+            children: [
+              // Aura avatar (gradient circle)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: OlfatoTokens.auraGradient,
+                ),
+                child: const Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Thumbnail — full width
-                    if (item['thumbnail_url'] != null && (item['thumbnail_url'] as String).isNotEmpty)
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                        child: Stack(
-                          children: [
-                            Image.network(
-                              _proxyThumb(item['thumbnail_url']),
-                              height: 220,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                height: 220, color: AppColors.elevated,
-                                child: const Center(child: Icon(Icons.play_arrow_rounded, color: AppColors.accent, size: 32))),
-                            ),
-                            // Play icon overlay
-                            Positioned.fill(
-                              child: Center(
-                                child: Container(
-                                  width: 44, height: 44,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.5),
-                                    shape: BoxShape.circle),
-                                  child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Container(
-                        height: 220,
-                        decoration: BoxDecoration(
-                          color: AppColors.elevated,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16))),
-                        child: const Center(child: Icon(Icons.play_arrow_rounded, color: AppColors.accent, size: 32)),
+                    Text(
+                      'Pergunte à Aura',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: OlfatoTokens.ink,
                       ),
-                    // Text
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['title'] ?? 'Review',
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6)),
-                            child: const Text('▶ Assistir no Instagram',
-                              style: TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w600)),
-                          ),
-                        ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Tire dúvidas e receba recomendações personalizadas',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: OlfatoTokens.gray,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          );
-        },
+              Icon(
+                Icons.chevron_right_rounded,
+                color: OlfatoTokens.gray,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

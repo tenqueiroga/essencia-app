@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../app/theme/app_colors.dart';
+import '../../app/theme/olfato_tokens.dart';
 
 class EmptyState extends StatelessWidget {
   final IconData icon;
@@ -25,12 +25,12 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 80, color: AppColors.textMuted),
+            Icon(icon, size: 80, color: OlfatoTokens.gray),
             const SizedBox(height: 16),
             Text(
               title,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
+                    color: OlfatoTokens.ink,
                   ),
               textAlign: TextAlign.center,
             ),
@@ -38,7 +38,7 @@ class EmptyState extends StatelessWidget {
             Text(
               subtitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: OlfatoTokens.gray,
                   ),
               textAlign: TextAlign.center,
             ),
