@@ -896,6 +896,12 @@ class _SobreTab extends StatelessWidget {
     final heartNotes = perfume['heart_notes'] as List? ?? [];
     final baseNotes = perfume['base_notes'] as List? ?? [];
     final totalNotes = topNotes.length + heartNotes.length + baseNotes.length;
+    final rating = perfume['rating'];
+    final ratingCount = perfume['rating_count'];
+    final haveCount = perfume['have_count'] as int?;
+    final hadCount = perfume['had_count'] as int?;
+    final wantCount = perfume['want_count'] as int?;
+    final priceValue = perfume['price_value_avg'];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -921,6 +927,45 @@ class _SobreTab extends StatelessWidget {
           if (gender != null && gender.isNotEmpty) _infoRow('Gênero', gender),
           if (collectionName != null && collectionName.isNotEmpty)
             _infoRow('Linha / Coleção', collectionName),
+
+          // Avaliação
+          if (rating != null) ...[
+            const SizedBox(height: 8),
+            _infoRow('Avaliação', '${double.tryParse(rating.toString())?.toStringAsFixed(1) ?? rating}/5${ratingCount != null ? ' ($ratingCount votos)' : ''}'),
+          ],
+
+          // Custo-benefício
+          if (priceValue != null) ...[
+            _infoRow('Custo-benefício', _formatPriceValue(priceValue)),
+          ],
+
+          // Popularidade
+          if (haveCount != null || wantCount != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Popularidade',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: OlfatoTokens.gray,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (haveCount != null && haveCount > 0)
+                  _popularityChip('👃', 'Têm', haveCount),
+                if (hadCount != null && hadCount > 0)
+                  _popularityChip('📦', 'Já tiveram', hadCount),
+                if (wantCount != null && wantCount > 0)
+                  _popularityChip('💜', 'Querem', wantCount),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+
           if (reviewsCount != null && reviewsCount > 0)
             _infoRow('Avaliações', '$reviewsCount avaliações'),
           if (totalNotes > 0)
@@ -928,6 +973,34 @@ class _SobreTab extends StatelessWidget {
           if (barcode != null && barcode.isNotEmpty)
             _infoRow('Código de barras', barcode),
         ],
+      ),
+    );
+  }
+
+  String _formatPriceValue(dynamic value) {
+    final val = double.tryParse(value.toString()) ?? 0;
+    if (val >= 4.0) return '⭐ Excelente (${val.toStringAsFixed(1)}/5)';
+    if (val >= 3.0) return '👍 Bom (${val.toStringAsFixed(1)}/5)';
+    if (val >= 2.0) return '😐 Regular (${val.toStringAsFixed(1)}/5)';
+    return '👎 Baixo (${val.toStringAsFixed(1)}/5)';
+  }
+
+  Widget _popularityChip(String icon, String label, int count) {
+    final formatted = count >= 1000 ? '${(count / 1000).toStringAsFixed(1)}k' : '$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: OlfatoTokens.mist,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: OlfatoTokens.borderLight),
+      ),
+      child: Text(
+        '$icon $label: $formatted',
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: OlfatoTokens.ink,
+        ),
       ),
     );
   }

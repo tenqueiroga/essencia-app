@@ -9,8 +9,20 @@ import '../../../core/network/api_client.dart';
 import '../models/daily_suggestion.dart';
 import 'chat_helpers.dart';
 
-/// Private typedef for the public PerfumeSuggestion used within this page.
-typedef _PerfumeSuggestion = PerfumeSuggestion;
+/// Private data class for the 2×2 action card grid in empty state.
+class _ActionCardData {
+  final IconData icon;
+  final String label;
+  final String description;
+  final String prompt;
+
+  const _ActionCardData({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.prompt,
+  });
+}
 
 class ChatPage extends StatefulWidget {
   final String? initialMessage;
@@ -30,18 +42,42 @@ class _ChatPageState extends State<ChatPage> {
   DailySuggestion? _dailySuggestion;
   bool _loadingSuggestion = false;
 
-  static const _quickChips = [
-    'Perfume para o calor',
-    'Dupe de luxo',
-    'Escolha um decante',
-    'Presente até R\$300',
+  // Navigation debounce state
+  int? _navigatingCardIndex;
+  DateTime? _lastNullIdTapTime;
+  static const _nullIdDebounceMs = 500;
+
+  static const _actionCards = [
+    _ActionCardData(
+      icon: Icons.wb_sunny_outlined,
+      label: 'Para hoje',
+      description: 'Sugestão baseada no clima atual',
+      prompt: 'Me sugere um perfume para usar hoje',
+    ),
+    _ActionCardData(
+      icon: Icons.compare_arrows,
+      label: 'Dupe finder',
+      description: 'Alternativas acessíveis de luxo',
+      prompt: 'Quero um dupe acessível de um perfume que gosto',
+    ),
+    _ActionCardData(
+      icon: Icons.card_giftcard_outlined,
+      label: 'Presente',
+      description: 'Encontre o presente perfeito',
+      prompt: 'Preciso de ajuda para escolher um perfume de presente',
+    ),
+    _ActionCardData(
+      icon: Icons.explore_outlined,
+      label: 'Descobrir',
+      description: 'Explore perfumes fora do usual',
+      prompt: 'Quero descobrir perfumes novos fora do meu perfil usual',
+    ),
   ];
 
   @override
   void initState() {
     super.initState();
     _loadDailySuggestion();
-    // If an initial message was provided (e.g., from scan/detail pages), send it
     if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _controller.text = widget.initialMessage!;
@@ -101,15 +137,11 @@ class _ChatPageState extends State<ChatPage> {
       decoration: BoxDecoration(
         color: OlfatoTokens.vanilla,
         border: Border(
-          bottom: BorderSide(
-            color: OlfatoTokens.borderLight,
-            width: 0.5,
-          ),
+          bottom: BorderSide(color: OlfatoTokens.borderLight, width: 0.5),
         ),
       ),
       child: Row(
         children: [
-          // Gradient avatar
           Container(
             width: 36,
             height: 36,
@@ -117,30 +149,21 @@ class _ChatPageState extends State<ChatPage> {
               shape: BoxShape.circle,
               gradient: OlfatoTokens.auraGradient,
             ),
-            child: const Icon(
-              Icons.auto_awesome,
-              color: Colors.white,
-              size: 18,
-            ),
+            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 10),
-          // Title
           Text(
             'Aura',
             style: GoogleFonts.ebGaramond(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: OlfatoTokens.ink,
+              fontSize: 22, fontWeight: FontWeight.w700, color: OlfatoTokens.ink,
             ),
           ),
           const Spacer(),
-          // History button
           IconButton(
             icon: const Icon(Icons.history, color: OlfatoTokens.gray),
             onPressed: _showConversationHistory,
             tooltip: 'Histórico',
           ),
-          // Close button (X)
           IconButton(
             icon: const Icon(Icons.close, color: OlfatoTokens.ink),
             onPressed: () => context.pop(),
@@ -151,7 +174,7 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // ─── Empty State (QuickChips + SugestaoDoDia) ─────────────────────────────
+  // ─── Empty State (2×2 ActionCards + SugestaoDoDia) ───────────────────────
 
   Widget _buildEmptyState() {
     return SingleChildScrollView(
@@ -159,60 +182,75 @@ class _ChatPageState extends State<ChatPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sugestão do Dia card
+          // Daily suggestion card
           if (_dailySuggestion != null) _buildSugestaoDoDiaCard(),
           if (_dailySuggestion != null) const SizedBox(height: 24),
           if (_loadingSuggestion)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: OlfatoTokens.plum,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.plum),
               ),
             ),
 
-          // Quick Chips section
+          // Section title
           Text(
             'Pergunte à Aura',
             style: GoogleFonts.ebGaramond(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: OlfatoTokens.ink,
+              fontSize: 18, fontWeight: FontWeight.w600, color: OlfatoTokens.ink,
             ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _quickChips.map((chip) => _buildQuickChip(chip)).toList(),
+
+          // 2×2 ActionCard grid
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.3,
+            children: _actionCards.map((card) => _buildActionCard(card)).toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickChip(String text) {
+  Widget _buildActionCard(_ActionCardData card) {
     return GestureDetector(
       onTap: () {
-        _controller.text = text;
+        _controller.text = card.prompt;
         _sendMessage();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: OlfatoTokens.mist,
-          borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
           border: Border.all(color: OlfatoTokens.borderLight),
+          boxShadow: [OlfatoTokens.cardShadow],
         ),
-        child: Text(
-          text,
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: OlfatoTokens.ink,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(card.icon, color: OlfatoTokens.plum, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              card.label,
+              style: GoogleFonts.inter(
+                fontSize: 14, fontWeight: FontWeight.w600, color: OlfatoTokens.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              card.description,
+              style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
@@ -242,10 +280,8 @@ class _ChatPageState extends State<ChatPage> {
                 Text(
                   'Sugestão do dia',
                   style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white.withValues(alpha: 0.9),
-                    letterSpacing: 1,
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: Colors.white.withValues(alpha: 0.9), letterSpacing: 1,
                   ),
                 ),
               ],
@@ -254,17 +290,14 @@ class _ChatPageState extends State<ChatPage> {
             Text(
               suggestion.perfumeName,
               style: GoogleFonts.ebGaramond(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
+                fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               '${suggestion.compatibilityScore}% compatível',
               style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontSize: 14, fontWeight: FontWeight.w600,
                 color: Colors.white.withValues(alpha: 0.95),
               ),
             ),
@@ -272,9 +305,7 @@ class _ChatPageState extends State<ChatPage> {
             Text(
               suggestion.justification,
               style: GoogleFonts.inter(
-                fontSize: 13,
-                color: Colors.white.withValues(alpha: 0.85),
-                height: 1.4,
+                fontSize: 13, color: Colors.white.withValues(alpha: 0.85), height: 1.4,
               ),
             ),
             if (!suggestion.isOwned) ...[
@@ -288,9 +319,7 @@ class _ChatPageState extends State<ChatPage> {
                 child: Text(
                   'Não está na sua coleção',
                   style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
+                    fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white,
                   ),
                 ),
               ),
@@ -317,13 +346,10 @@ class _ChatPageState extends State<ChatPage> {
         final content = msg['content'] as String? ?? '';
         final isError = msg['isError'] == true;
 
-        if (isError) {
-          return _buildErrorMessage(content);
-        }
+        if (isError) return _buildErrorMessage(content);
 
         if (!isUser) {
-          // Parse perfume suggestions from Aura response
-          final suggestions = _parsePerfumeSuggestions(content);
+          final suggestions = parsePerfumeSuggestions(content);
           if (suggestions.isNotEmpty) {
             return _buildAuraMessageWithCards(content, suggestions);
           }
@@ -348,22 +374,12 @@ class _ChatPageState extends State<ChatPage> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: OlfatoTokens.plum,
-              ),
+            const SizedBox(
+              width: 14, height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.plum),
             ),
             const SizedBox(width: 8),
-            Text(
-              'Pensando...',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: OlfatoTokens.gray,
-              ),
-            ),
+            Text('Pensando...', style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray)),
           ],
         ),
       ),
@@ -375,9 +391,7 @@ class _ChatPageState extends State<ChatPage> {
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-        ),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isUser ? OlfatoTokens.mist : OlfatoTokens.vanilla,
@@ -386,11 +400,7 @@ class _ChatPageState extends State<ChatPage> {
         ),
         child: Text(
           content,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.5,
-            color: OlfatoTokens.ink,
-          ),
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.ink),
         ),
       ),
     );
@@ -401,30 +411,18 @@ class _ChatPageState extends State<ChatPage> {
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-        ),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: OlfatoTokens.error.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-          border: Border.all(
-            color: OlfatoTokens.error.withValues(alpha: 0.3),
-            width: 0.5,
-          ),
+          border: Border.all(color: OlfatoTokens.error.withValues(alpha: 0.3), width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              content,
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                height: 1.5,
-                color: OlfatoTokens.error,
-              ),
-            ),
+            Text(content, style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.error)),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: _retryLastMessage,
@@ -434,14 +432,8 @@ class _ChatPageState extends State<ChatPage> {
                   color: OlfatoTokens.error.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  'Tentar novamente',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: OlfatoTokens.error,
-                  ),
-                ),
+                child: Text('Tentar novamente',
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.error)),
               ),
             ),
           ],
@@ -450,51 +442,55 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _buildAuraMessageWithCards(
-    String content,
-    List<_PerfumeSuggestion> suggestions,
-  ) {
-    // Remove perfume pattern lines from content for cleaner text display
-    final cleanedContent = _removePerfumePatterns(content);
+  Widget _buildAuraMessageWithCards(String content, List<PerfumeSuggestion> suggestions) {
+    final cleanedContent = removePerfumePatterns(content);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (cleanedContent.trim().isNotEmpty)
           _buildMessageBubble(cleanedContent.trim(), false),
-        // Inline perfume cards
-        ...suggestions.map((s) => _buildInlinePerfumeCard(s)),
+        ...suggestions.asMap().entries.map(
+          (entry) => _buildInlinePerfumeCard(entry.value, entry.key),
+        ),
       ],
     );
   }
 
-  Widget _buildInlinePerfumeCard(_PerfumeSuggestion suggestion) {
+  // ─── Inline Perfume Card with Thumbnail + Loading ────────────────────────
+
+  Widget _buildInlinePerfumeCard(PerfumeSuggestion suggestion, int index) {
+    final isNavigating = _navigatingCardIndex == index;
+
     return GestureDetector(
-      onTap: () => _navigateToPerfume(suggestion),
+      onTap: (_navigatingCardIndex != null) ? null : () => _navigateToPerfume(suggestion, index),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8, left: 0, right: 40),
+        margin: const EdgeInsets.only(bottom: 8, right: 40),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
           border: Border.all(color: OlfatoTokens.borderLight),
           boxShadow: [
-            BoxShadow(
-              offset: const Offset(0, 2),
-              blurRadius: 8,
-              color: OlfatoTokens.ink.withValues(alpha: 0.05),
-            ),
+            BoxShadow(offset: const Offset(0, 2), blurRadius: 8, color: OlfatoTokens.ink.withValues(alpha: 0.05)),
           ],
         ),
         child: Row(
           children: [
-            // Gradient accent bar
-            Container(
-              width: 4,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: OlfatoTokens.auraGradient,
-                borderRadius: BorderRadius.circular(2),
+            // Thumbnail image (40×40) replacing gradient bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 40, height: 40,
+                child: suggestion.imageUrl != null
+                    ? Image.network(
+                        suggestion.imageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null ? child : _shimmerPlaceholder(),
+                        errorBuilder: (_, __, ___) => _perfumePlaceholder(),
+                      )
+                    : _perfumePlaceholder(),
               ),
             ),
             const SizedBox(width: 12),
@@ -503,22 +499,11 @@ class _ChatPageState extends State<ChatPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    suggestion.name,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: OlfatoTokens.ink,
-                    ),
-                  ),
+                  Text(suggestion.name,
+                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
                   const SizedBox(height: 2),
-                  Text(
-                    suggestion.house,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: OlfatoTokens.gray,
-                    ),
-                  ),
+                  Text(suggestion.house,
+                    style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray)),
                 ],
               ),
             ),
@@ -529,24 +514,42 @@ class _ChatPageState extends State<ChatPage> {
                 color: OlfatoTokens.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                '${suggestion.compatibility}%',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: OlfatoTokens.green,
-                ),
-              ),
+              child: Text('${suggestion.compatibility}%',
+                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: OlfatoTokens.green)),
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: OlfatoTokens.gray,
-            ),
+            // Loading or chevron
+            if (isNavigating)
+              const SizedBox(
+                width: 18, height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.plum),
+              )
+            else
+              const Icon(Icons.chevron_right, size: 18, color: OlfatoTokens.gray),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _shimmerPlaceholder() {
+    return Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(
+        color: OlfatoTokens.mist,
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+
+  Widget _perfumePlaceholder() {
+    return Container(
+      width: 40, height: 40,
+      decoration: BoxDecoration(
+        color: OlfatoTokens.mist,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.local_florist, size: 20, color: OlfatoTokens.gray),
     );
   }
 
@@ -557,9 +560,7 @@ class _ChatPageState extends State<ChatPage> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       decoration: BoxDecoration(
         color: OlfatoTokens.vanilla,
-        border: Border(
-          top: BorderSide(color: OlfatoTokens.borderLight, width: 0.5),
-        ),
+        border: Border(top: BorderSide(color: OlfatoTokens.borderLight, width: 0.5)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -570,26 +571,17 @@ class _ChatPageState extends State<ChatPage> {
                 child: TextField(
                   controller: _controller,
                   enabled: !_isSending,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: OlfatoTokens.ink,
-                  ),
+                  style: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.ink),
                   decoration: InputDecoration(
                     hintText: 'Pergunte algo à Aura...',
-                    hintStyle: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: OlfatoTokens.gray,
-                    ),
+                    hintStyle: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.gray),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
                     fillColor: OlfatoTokens.mist,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
                   onSubmitted: (_) => _sendMessage(),
                 ),
@@ -609,14 +601,8 @@ class _ChatPageState extends State<ChatPage> {
             ],
           ),
           const SizedBox(height: 6),
-          // Disclaimer
-          Text(
-            'Aura pode cometer erros. Confirme sempre.',
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              color: OlfatoTokens.gray,
-            ),
-          ),
+          Text('Aura pode cometer erros. Confirme sempre.',
+            style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray)),
           const SizedBox(height: 4),
         ],
       ),
@@ -637,20 +623,14 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom();
 
     try {
-      // Create conversation if needed
       if (_conversationId == null) {
-        final convResponse =
-            await ApiClient().dio.post('/chat/conversations');
+        final convResponse = await ApiClient().dio.post('/chat/conversations');
         _conversationId = convResponse.data['id'];
       }
 
-      // Send message with 15s timeout
       final response = await ApiClient()
           .dio
-          .post(
-            '/chat/conversations/$_conversationId/messages',
-            data: {'message': text},
-          )
+          .post('/chat/conversations/$_conversationId/messages', data: {'message': text})
           .timeout(const Duration(seconds: 15));
 
       setState(() {
@@ -675,8 +655,7 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {
         _messages.add({
           'role': 'assistant',
-          'content':
-              'Não consegui processar sua pergunta. Tente novamente.',
+          'content': 'Não consegui processar sua pergunta. Tente novamente.',
           'isError': true,
         });
         _isSending = false;
@@ -688,15 +667,9 @@ class _ChatPageState extends State<ChatPage> {
 
   void _retryLastMessage() {
     if (_lastFailedMessage == null) return;
-    // Remove the error message
     setState(() {
-      if (_messages.isNotEmpty && _messages.last['isError'] == true) {
-        _messages.removeLast();
-      }
-      // Also remove the user message that failed
-      if (_messages.isNotEmpty && _messages.last['role'] == 'user') {
-        _messages.removeLast();
-      }
+      if (_messages.isNotEmpty && _messages.last['isError'] == true) _messages.removeLast();
+      if (_messages.isNotEmpty && _messages.last['role'] == 'user') _messages.removeLast();
     });
     _controller.text = _lastFailedMessage!;
     _sendMessage();
@@ -714,41 +687,32 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  // ─── Perfume Suggestion Parsing ───────────────────────────────────────────
+  // ─── Navigation with Debounce ─────────────────────────────────────────────
 
-  /// Delegates to the top-level [parsePerfumeSuggestions] function.
-  List<_PerfumeSuggestion> _parsePerfumeSuggestions(String content) {
-    return parsePerfumeSuggestions(content);
-  }
+  Future<void> _navigateToPerfume(PerfumeSuggestion suggestion, int cardIndex) async {
+    // Guard: already navigating
+    if (_navigatingCardIndex != null) return;
 
-  /// Removes perfume pattern lines from the content so the text bubble
-  /// displays the prose without the structured data that gets shown as cards.
-  String _removePerfumePatterns(String content) {
-    // Remove lines matching numbered perfume patterns
-    final lines = content.split('\n');
-    final cleaned = lines.where((line) {
-      final trimmed = line.trim();
-      // Remove lines that are purely perfume entries
-      if (RegExp(r'^\d+\.\s*.+[-–—].+[-–—]\s*\d{1,3}%').hasMatch(trimmed)) {
-        return false;
-      }
-      if (RegExp(r'^\*\*.+\*\*\s*[-–—]?\s*.+\s*[-–—]?\s*\d{1,3}%')
-          .hasMatch(trimmed)) {
-        return false;
-      }
-      return true;
-    }).toList();
-    return cleaned.join('\n');
-  }
-
-  // ─── Navigation ───────────────────────────────────────────────────────────
-
-  Future<void> _navigateToPerfume(_PerfumeSuggestion suggestion) async {
+    // Direct navigation when ID is available — no API call needed
     if (suggestion.id != null && suggestion.id!.isNotEmpty) {
-      context.push('/perfume/${suggestion.id}');
+      setState(() => _navigatingCardIndex = cardIndex);
+      try {
+        context.push('/perfume/${suggestion.id}');
+      } finally {
+        if (mounted) setState(() => _navigatingCardIndex = null);
+      }
       return;
     }
-    // Try exact search first
+
+    // Debounce for null-ID: 500ms minimum interval
+    final now = DateTime.now();
+    if (_lastNullIdTapTime != null &&
+        now.difference(_lastNullIdTapTime!).inMilliseconds < _nullIdDebounceMs) {
+      return;
+    }
+    _lastNullIdTapTime = now;
+
+    setState(() => _navigatingCardIndex = cardIndex);
     try {
       final response = await ApiClient().dio.get(
         '/perfumes/search',
@@ -757,7 +721,6 @@ class _ChatPageState extends State<ChatPage> {
       final results = response.data;
       final list = results is List ? results : [];
       if (list.isNotEmpty && mounted) {
-        // Find best match by name similarity
         final exactMatch = list.firstWhere(
           (p) => (p['name'] as String?)?.toLowerCase() == suggestion.name.toLowerCase(),
           orElse: () => list.first,
@@ -768,14 +731,22 @@ class _ChatPageState extends State<ChatPage> {
           return;
         }
       }
-    } catch (_) {}
-    
-    // Fallback: show snackbar that perfume wasn't found
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Não encontrei "${suggestion.name}" na base. Tente buscar no Explorar.'),
-        backgroundColor: OlfatoTokens.gray,
-      ));
+      // Not found
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não encontrei "${suggestion.name}" na base. Tente buscar no Explorar.'),
+          backgroundColor: OlfatoTokens.gray,
+        ));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Erro ao buscar perfume. Tente novamente.'),
+          backgroundColor: OlfatoTokens.gray,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _navigatingCardIndex = null);
     }
   }
 
@@ -786,7 +757,7 @@ class _ChatPageState extends State<ChatPage> {
       final response = await ApiClient().dio.get('/chat/conversations');
       final conversations = response.data as List;
       if (!mounted) return;
-      
+
       showModalBottomSheet(
         context: context,
         backgroundColor: OlfatoTokens.vanilla,
@@ -811,57 +782,53 @@ class _ChatPageState extends State<ChatPage> {
               ),
               Expanded(
                 child: conversations.isEmpty
-                  ? Center(child: Text('Nenhuma conversa anterior', style: GoogleFonts.inter(color: OlfatoTokens.gray)))
-                  : ListView.builder(
-                      controller: scroll,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: conversations.length,
-                      itemBuilder: (_, i) {
-                        final conv = conversations[i] as Map<String, dynamic>;
-                        final lastMessage = conv['last_message'] as String? ?? conv['title'] as String? ?? 'Conversa ${i + 1}';
-                        final updatedAt = conv['updated_at'] as String?;
-                        
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            _loadConversation(conv['id']?.toString() ?? '');
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: OlfatoTokens.mist,
-                              borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                              border: Border.all(color: OlfatoTokens.borderLight),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.chat_bubble_outline, color: OlfatoTokens.plum, size: 18),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        lastMessage,
-                                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: OlfatoTokens.ink),
-                                        maxLines: 2, overflow: TextOverflow.ellipsis,
-                                      ),
-                                      if (updatedAt != null)
-                                        Text(
-                                          _formatDate(updatedAt),
-                                          style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
-                                        ),
-                                    ],
+                    ? Center(child: Text('Nenhuma conversa anterior', style: GoogleFonts.inter(color: OlfatoTokens.gray)))
+                    : ListView.builder(
+                        controller: scroll,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: conversations.length,
+                        itemBuilder: (_, i) {
+                          final conv = conversations[i] as Map<String, dynamic>;
+                          final lastMessage = conv['last_message'] as String? ?? conv['title'] as String? ?? 'Conversa ${i + 1}';
+                          final updatedAt = conv['updated_at'] as String?;
+
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _loadConversation(conv['id']?.toString() ?? '');
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: OlfatoTokens.mist,
+                                borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                                border: Border.all(color: OlfatoTokens.borderLight),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.chat_bubble_outline, color: OlfatoTokens.plum, size: 18),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(lastMessage,
+                                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: OlfatoTokens.ink),
+                                          maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        if (updatedAt != null)
+                                          Text(_formatDate(updatedAt),
+                                            style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray)),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                Icon(Icons.chevron_right, color: OlfatoTokens.gray, size: 18),
-                              ],
+                                  const Icon(Icons.chevron_right, color: OlfatoTokens.gray, size: 18),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
               ),
             ],
           ),
@@ -880,10 +847,7 @@ class _ChatPageState extends State<ChatPage> {
           _conversationId = conversationId;
           _messages.clear();
           for (final msg in messages) {
-            _messages.add({
-              'role': msg['role'] as String,
-              'content': msg['content'] as String,
-            });
+            _messages.add({'role': msg['role'] as String, 'content': msg['content'] as String});
           }
         });
         _scrollToBottom();
