@@ -1133,13 +1133,16 @@ class _PriceSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rawPrices = perfume['prices'] as List? ?? [];
-    final prices = rawPrices
-        .whereType<Map<String, dynamic>>()
-        .where((p) {
-          final priceVal = double.tryParse(p['price']?.toString() ?? '');
-          return priceVal != null && priceVal > 0;
-        })
-        .toList();
+    final prices = <Map<String, dynamic>>[];
+    for (final p in rawPrices) {
+      if (p is Map) {
+        final map = Map<String, dynamic>.from(p);
+        final priceVal = double.tryParse(map['price']?.toString() ?? '');
+        if (priceVal != null && priceVal > 0) {
+          prices.add(map);
+        }
+      }
+    }
 
     if (prices.isEmpty) {
       // Fallback to average_price
