@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/providers/auth_provider.dart';
@@ -1036,11 +1037,14 @@ class _FeedSectionState extends State<_FeedSection> {
     final perfumeId = item['perfume_id']?.toString();
 
     return GestureDetector(
-      onTap: () {
-        if (perfumeId != null && perfumeId.isNotEmpty) {
+      onTap: () async {
+        if (instagramUrl != null && instagramUrl.isNotEmpty) {
+          final uri = Uri.parse(instagramUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        } else if (perfumeId != null && perfumeId.isNotEmpty) {
           context.push('/perfume/$perfumeId');
-        } else if (instagramUrl != null && instagramUrl.isNotEmpty) {
-          // Could open instagram URL
         }
       },
       child: Container(
