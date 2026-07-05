@@ -38,21 +38,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Olfato brand circle
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: OlfatoTokens.auraGradient,
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'O',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                // Olfato brand symbol
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(40),
+                  child: Image.asset(
+                    'assets/images/olfato_simbolo.png',
+                    width: 80,
+                    height: 80,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 80,
+                      height: 80,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: OlfatoTokens.auraGradient,
+                      ),
+                      child: const Center(
+                        child: Text('O', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white)),
                       ),
                     ),
                   ),

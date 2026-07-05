@@ -62,12 +62,23 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 child: const Text('Pular', style: TextStyle(color: OlfatoTokens.gray)),
               ),
             ),
-            // Brand tagline
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32),
-              child: Text('Seu gosto, traduzido em perfume.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: OlfatoTokens.gray)),
+            // Brand tagline with logo
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                children: [
+                  Image.asset(
+                    'assets/images/olfato_simbolo.png',
+                    width: 48,
+                    height: 48,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Seu gosto, traduzido em perfume.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: OlfatoTokens.gray)),
+                ],
+              ),
             ),
             const SizedBox(height: 8),
             // Pages
