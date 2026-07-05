@@ -857,7 +857,7 @@ class _RotatingSectionState extends State<_RotatingSection> {
     final brand = item['brand'] as String? ?? '';
     final imageUrl = _proxyImg(item['image_url'] as String?);
     final perfumeId = item['id']?.toString() ?? '';
-    final price = (item['average_price'] ?? 0) as num;
+    final price = double.tryParse(item['average_price']?.toString() ?? '0') ?? 0;
 
     return GestureDetector(
       onTap: () {

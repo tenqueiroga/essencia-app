@@ -1135,7 +1135,10 @@ class _PriceSection extends StatelessWidget {
     final rawPrices = perfume['prices'] as List? ?? [];
     final prices = rawPrices
         .whereType<Map<String, dynamic>>()
-        .where((p) => (p['price'] as num?)?.toDouble() != null && (p['price'] as num).toDouble() > 0)
+        .where((p) {
+          final priceVal = double.tryParse(p['price']?.toString() ?? '');
+          return priceVal != null && priceVal > 0;
+        })
         .toList();
 
     if (prices.isEmpty) {
@@ -1197,13 +1200,13 @@ class _PriceSection extends StatelessWidget {
     // Sort by price ascending, limit to 5
     final sorted = List<Map<String, dynamic>>.from(prices)
       ..sort((a, b) {
-        final pa = (a['price'] as num?)?.toDouble() ?? double.infinity;
-        final pb = (b['price'] as num?)?.toDouble() ?? double.infinity;
+        final pa = double.tryParse(a['price']?.toString() ?? '') ?? double.infinity;
+        final pb = double.tryParse(b['price']?.toString() ?? '') ?? double.infinity;
         return pa.compareTo(pb);
       });
 
     final displayPrices = sorted.take(5).toList();
-    final lowestPrice = (displayPrices.first['price'] as num?)?.toDouble();
+    final lowestPrice = double.tryParse(displayPrices.first['price']?.toString() ?? '');
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1221,7 +1224,7 @@ class _PriceSection extends StatelessWidget {
           const SizedBox(height: 14),
           ...displayPrices.map((store) {
             final source = store['source'] as String? ?? '';
-            final price = (store['price'] as num?)?.toDouble();
+            final price = double.tryParse(store['price']?.toString() ?? '');
             final url = store['url'] as String?;
             final isLowest = price == lowestPrice && sorted.length > 1;
 
