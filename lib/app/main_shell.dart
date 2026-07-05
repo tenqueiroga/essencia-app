@@ -7,13 +7,13 @@ class MainShell extends StatelessWidget {
 
   const MainShell({super.key, required this.child});
 
-  /// Tab definitions: Home, Explorar, Scan (center elevated), Coleção, Aura.
+  /// Tab definitions: Home, Explorar, Scan (center elevated), Wishlist, Aura.
   /// Profile tab removed — accessed via avatar in Home header.
   static const _tabs = [
     {'path': '/', 'icon': Icons.home_outlined, 'activeIcon': Icons.home_rounded, 'label': 'Home'},
     {'path': '/explore', 'icon': Icons.search_rounded, 'activeIcon': Icons.search_rounded, 'label': 'Explorar'},
     {'path': '/scan', 'icon': Icons.crop_free, 'activeIcon': Icons.crop_free, 'label': 'Scan'},
-    {'path': '/collection', 'icon': Icons.favorite_border_rounded, 'activeIcon': Icons.favorite_rounded, 'label': 'Coleção'},
+    {'path': '/wishlist', 'icon': Icons.favorite_border_rounded, 'activeIcon': Icons.favorite_rounded, 'label': 'Wishlist'},
     {'path': '/chat', 'icon': Icons.auto_awesome_outlined, 'activeIcon': Icons.auto_awesome, 'label': 'Aura'},
   ];
 
@@ -26,15 +26,11 @@ class MainShell extends StatelessWidget {
     final currentIndex = _tabs.indexWhere((t) => t['path'] == location);
     final isDesktop = MediaQuery.of(context).size.width > 768;
 
-    // Hide bottom tab bar when Scanner is in full-screen capture mode
-    final isScanFullScreen = location == '/scan';
-
     if (isDesktop) {
       return _DesktopLayout(currentIndex: currentIndex, child: child);
     }
     return _MobileLayout(
       currentIndex: currentIndex,
-      hideTabBar: isScanFullScreen,
       child: child,
     );
   }
@@ -43,12 +39,10 @@ class MainShell extends StatelessWidget {
 class _MobileLayout extends StatelessWidget {
   final Widget child;
   final int currentIndex;
-  final bool hideTabBar;
 
   const _MobileLayout({
     required this.child,
     required this.currentIndex,
-    this.hideTabBar = false,
   });
 
   @override
@@ -56,45 +50,43 @@ class _MobileLayout extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
       body: child,
-      bottomNavigationBar: hideTabBar
-          ? null
-          : Container(
-              decoration: BoxDecoration(
-                color: theme.scaffoldBackgroundColor.withValues(alpha: 0.96),
-                border: Border(
-                  top: BorderSide(color: OlfatoTokens.borderLight, width: 0.5),
-                ),
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(MainShell._tabs.length, (i) {
-                      final isActive = currentIndex == i;
-                      final isScanTab = i == MainShell._scanTabIndex;
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor.withValues(alpha: 0.96),
+          border: Border(
+            top: BorderSide(color: OlfatoTokens.borderLight, width: 0.5),
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(MainShell._tabs.length, (i) {
+                final isActive = currentIndex == i;
+                final isScanTab = i == MainShell._scanTabIndex;
 
-                      if (isScanTab) {
-                        return _ElevatedScanTab(
-                          isActive: isActive,
-                          onTap: () => context.go(
-                            MainShell._tabs[i]['path'] as String,
-                          ),
-                        );
-                      }
+                if (isScanTab) {
+                  return _ElevatedScanTab(
+                    isActive: isActive,
+                    onTap: () => context.go(
+                      MainShell._tabs[i]['path'] as String,
+                    ),
+                  );
+                }
 
-                      return _RegularTab(
-                        tab: MainShell._tabs[i],
-                        isActive: isActive,
-                        onTap: () => context.go(
-                          MainShell._tabs[i]['path'] as String,
-                        ),
-                      );
-                    }),
+                return _RegularTab(
+                  tab: MainShell._tabs[i],
+                  isActive: isActive,
+                  onTap: () => context.go(
+                    MainShell._tabs[i]['path'] as String,
                   ),
-                ),
-              ),
+                );
+              }),
             ),
+          ),
+        ),
+      ),
     );
   }
 }

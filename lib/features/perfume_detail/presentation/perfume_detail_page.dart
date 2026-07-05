@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 import '../../collection/presentation/type_selection_dialog.dart';
+import '../../wishlist/presentation/wishlist_provider.dart';
 
 /// Clamps a scent description to at most 150 characters.
 /// If longer, truncates to 147 characters and appends "...".
@@ -30,16 +32,16 @@ List<T> boundSimilares<T>(List<T> similares) {
 /// Displays header (image, name, brand, price, rating, compatibility),
 /// scent summary, tabbed content (Notas, Performance, Sobre),
 /// similar perfumes section, and "Conversar com Aura" CTA.
-class PerfumeDetailPage extends StatefulWidget {
+class PerfumeDetailPage extends ConsumerStatefulWidget {
   final String perfumeId;
 
   const PerfumeDetailPage({super.key, required this.perfumeId});
 
   @override
-  State<PerfumeDetailPage> createState() => _PerfumeDetailPageState();
+  ConsumerState<PerfumeDetailPage> createState() => _PerfumeDetailPageState();
 }
 
-class _PerfumeDetailPageState extends State<PerfumeDetailPage>
+class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
     with SingleTickerProviderStateMixin {
   Map<String, dynamic>? _perfume;
   List<dynamic> _similares = [];
@@ -133,6 +135,9 @@ class _PerfumeDetailPageState extends State<PerfumeDetailPage>
 
   @override
   Widget build(BuildContext context) {
+    final wishlistIds = ref.watch(wishlistIdsProvider);
+    final isInWishlist = wishlistIds.contains(widget.perfumeId);
+
     return Scaffold(
       backgroundColor: OlfatoTokens.vanilla,
       appBar: AppBar(
@@ -142,6 +147,41 @@ class _PerfumeDetailPageState extends State<PerfumeDetailPage>
           icon: const Icon(Icons.arrow_back, color: OlfatoTokens.ink),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              isInWishlist ? Icons.favorite : Icons.favorite_border,
+              color: isInWishlist ? OlfatoTokens.pitanga : OlfatoTokens.gray,
+            ),
+            onPressed: () async {
+              final notifier = ref.read(wishlistIdsProvider.notifier);
+              bool success;
+              if (isInWishlist) {
+                success = await notifier.remove(widget.perfumeId);
+                if (success && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Removido da wishlist'),
+                    backgroundColor: OlfatoTokens.gray,
+                  ));
+                }
+              } else {
+                success = await notifier.add(widget.perfumeId);
+                if (success && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Adicionado à wishlist ❤️'),
+                    backgroundColor: OlfatoTokens.plum,
+                  ));
+                }
+              }
+              if (!success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Erro ao atualizar wishlist'),
+                  backgroundColor: OlfatoTokens.error,
+                ));
+              }
+            },
+          ),
+        ],
       ),
       body: _buildBody(),
     );
@@ -186,6 +226,13 @@ class _PerfumeDetailPageState extends State<PerfumeDetailPage>
             _DupesSection(dupes: _dupes, proxyUrl: _proxyUrl),
           const SizedBox(height: 24),
           _CollectionButton(perfumeId: widget.perfumeId, perfumeName: _perfume!['name'] as String? ?? ''),
+          const SizedBox(height: 12),
+          // Compare button — navigates to comparador VS with a modal to pick second perfume
+          if (_similares.isNotEmpty)
+            _CompareButton(
+              currentPerfumeId: widget.perfumeId,
+              similares: _similares,
+            ),
           const SizedBox(height: 16),
           _AuraCTA(perfume: _perfume!),
           const SizedBox(height: 40),
@@ -448,7 +495,7 @@ class _ScentSummary extends StatelessWidget {
 
 // ─── PerfumeTabSection ────────────────────────────────────────────────────────
 
-class _PerfumeTabSection extends StatelessWidget {
+class _PerfumeTabSection extends StatefulWidget {
   final Map<String, dynamic> perfume;
   final TabController tabController;
 
@@ -458,7 +505,32 @@ class _PerfumeTabSection extends StatelessWidget {
   });
 
   @override
+  State<_PerfumeTabSection> createState() => _PerfumeTabSectionState();
+}
+
+class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
+  @override
+  void initState() {
+    super.initState();
+    widget.tabController.addListener(_onTabChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.tabController.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (!widget.tabController.indexIsChanging) {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final activeIndex = widget.tabController.index;
+
     return Column(
       children: [
         // Tab bar
@@ -469,7 +541,7 @@ class _PerfumeTabSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
           ),
           child: TabBar(
-            controller: tabController,
+            controller: widget.tabController,
             labelColor: OlfatoTokens.ink,
             unselectedLabelColor: OlfatoTokens.gray,
             labelStyle: GoogleFonts.inter(
@@ -496,32 +568,18 @@ class _PerfumeTabSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // Tab content — use fixed height to avoid nested scroll issues
-        SizedBox(
-          height: _computeTabHeight(),
-          child: TabBarView(
-            controller: tabController,
-            children: [
-              _NotasTab(perfume: perfume),
-              _PerformanceTab(perfume: perfume),
-              _SobreTab(perfume: perfume),
-            ],
-          ),
+        // Render active tab content inline — no nested scroll
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: switch (activeIndex) {
+            0 => _NotasTab(perfume: widget.perfume),
+            1 => _PerformanceTab(perfume: widget.perfume),
+            2 => _SobreTab(perfume: widget.perfume),
+            _ => const SizedBox.shrink(),
+          },
         ),
       ],
     );
-  }
-
-  double _computeTabHeight() {
-    // Estimate a reasonable height based on content
-    final topNotes = perfume['top_notes'] as List? ?? [];
-    final heartNotes = perfume['heart_notes'] as List? ?? [];
-    final baseNotes = perfume['base_notes'] as List? ?? [];
-    final accords = perfume['accords_data'] as List? ?? [];
-    final notesCount = topNotes.length + heartNotes.length + baseNotes.length;
-    final accordsCount = accords.length.clamp(0, 8);
-    final notasHeight = 80.0 + (notesCount * 12.0) + (accordsCount * 30.0) + 60;
-    return notasHeight.clamp(300.0, 600.0);
   }
 }
 
@@ -539,7 +597,7 @@ class _NotasTab extends StatelessWidget {
     final baseNotes = perfume['base_notes'] as List? ?? [];
     final accords = perfume['accords_data'] as List? ?? [];
 
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,7 +756,7 @@ class _PerformanceTab extends StatelessWidget {
     final fixacao = _derivePercentage(longevityData);
     final projecaoRastro = _derivePercentage(sillageData);
 
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -903,7 +961,7 @@ class _SobreTab extends StatelessWidget {
     final wantCount = perfume['want_count'] as int?;
     final priceValue = perfume['price_value_avg'];
 
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1556,53 +1614,100 @@ class _DupesSection extends StatelessWidget {
 
 // ─── Aura CTA ─────────────────────────────────────────────────────────────────
 
-class _AuraCTA extends StatelessWidget {
+/// Predefined contextual suggestion pool for the Aura AI assistant.
+const kAuraSuggestions = <String>[
+  'Pergunte à Aura sobre os melhores ambientes para usar ele',
+  'Compare com a Aura ele com seu DUPE mais conhecido',
+  'Pergunte à Aura se ele é um bom presente',
+  'Pergunte à Aura se ele se encaixa na sua coleção',
+];
+
+class _AuraCTA extends StatefulWidget {
   final Map<String, dynamic> perfume;
 
   const _AuraCTA({required this.perfume});
 
   @override
+  State<_AuraCTA> createState() => _AuraCTAState();
+}
+
+class _AuraCTAState extends State<_AuraCTA> {
+  late List<String> _selectedSuggestions;
+
+  @override
+  void initState() {
+    super.initState();
+    final shuffled = List<String>.from(kAuraSuggestions)..shuffle();
+    final count = (DateTime.now().millisecond % 2) + 1; // 1 or 2
+    _selectedSuggestions = shuffled.take(count).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final name = perfume['name'] as String? ?? '';
-    final brand = perfume['brand'] as String? ?? '';
+    final name = widget.perfume['name'] as String? ?? '';
+    final brand = widget.perfume['brand'] as String? ?? '';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: GestureDetector(
-        onTap: () {
-          // Navigate to chat with perfume context pre-loaded
-          context.go('/chat?perfume=${Uri.encodeComponent('$name - $brand')}');
-        },
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          decoration: BoxDecoration(
-            gradient: OlfatoTokens.auraGradient,
-            borderRadius: BorderRadius.circular(OlfatoTokens.radiusFeature),
-            boxShadow: [
-              BoxShadow(
-                offset: const Offset(0, 6),
-                blurRadius: 20,
-                color: OlfatoTokens.plum.withValues(alpha: 0.25),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
-              const SizedBox(width: 10),
+              Icon(Icons.auto_awesome, color: OlfatoTokens.plum, size: 16),
+              const SizedBox(width: 6),
               Text(
-                'Conversar com Aura',
+                'Pergunte à Aura',
                 style: GoogleFonts.inter(
-                  fontSize: 15,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white,
+                  color: OlfatoTokens.plum,
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 10),
+          ..._selectedSuggestions.map((suggestion) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: GestureDetector(
+              onTap: () {
+                final message = '$suggestion — $name ($brand)';
+                context.push('/chat?initialMessage=${Uri.encodeComponent(message)}');
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                decoration: BoxDecoration(
+                  color: OlfatoTokens.plum.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                  border: Border.all(
+                    color: OlfatoTokens.plum.withValues(alpha: 0.15),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        suggestion,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: OlfatoTokens.ink,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 12,
+                      color: OlfatoTokens.plum,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )),
+        ],
       ),
     );
   }
@@ -1928,6 +2033,80 @@ class _DupeOfTag extends StatelessWidget {
               const Icon(Icons.open_in_new, size: 12, color: OlfatoTokens.pitanga),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── CompareButton ────────────────────────────────────────────────────────────
+
+/// Button that lets the user pick a similar perfume to compare side-by-side.
+class _CompareButton extends StatelessWidget {
+  final String currentPerfumeId;
+  final List<dynamic> similares;
+
+  const _CompareButton({required this.currentPerfumeId, required this.similares});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: OutlinedButton.icon(
+        onPressed: () => _showComparePicker(context),
+        icon: const Icon(Icons.compare_arrows),
+        label: const Text('Comparar com outro'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: OlfatoTokens.plum,
+          side: BorderSide(color: OlfatoTokens.plum.withValues(alpha: 0.4)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+          ),
+          minimumSize: const Size(double.infinity, 48),
+        ),
+      ),
+    );
+  }
+
+  void _showComparePicker(BuildContext context) {
+    final items = similares.take(10).toList();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: OlfatoTokens.vanilla,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(width: 40, height: 4, decoration: BoxDecoration(color: OlfatoTokens.gray, borderRadius: BorderRadius.circular(2))),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Comparar com qual?',
+              style: GoogleFonts.ebGaramond(fontSize: 20, fontWeight: FontWeight.w700, color: OlfatoTokens.ink),
+            ),
+            const SizedBox(height: 12),
+            ...items.map((item) {
+              final name = item['name'] as String? ?? '';
+              final brand = item['brand'] as String? ?? '';
+              final id = item['id']?.toString() ?? '';
+              return ListTile(
+                leading: const Icon(Icons.local_florist, color: OlfatoTokens.plum),
+                title: Text(name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500)),
+                subtitle: Text(brand, style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray)),
+                trailing: const Icon(Icons.chevron_right, color: OlfatoTokens.gray),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/compare?perfume1=$currentPerfumeId&perfume2=$id');
+                },
+              );
+            }),
+          ],
         ),
       ),
     );

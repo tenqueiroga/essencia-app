@@ -127,6 +127,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               GlassCard(
                 padding: EdgeInsets.zero,
                 child: Column(children: [
+                  _SettingsTile(icon: Icons.grid_view_rounded, title: 'Minha Coleção', onTap: () => context.push('/collection')),
+                  const Divider(color: OlfatoTokens.borderLight, height: 1),
+                  _SettingsTile(icon: Icons.favorite_rounded, title: 'Minha Wishlist', onTap: () => context.push('/wishlist')),
+                  const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.book_outlined, title: 'Diário Olfativo', onTap: () => context.go('/journal')),
                   const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.download_outlined, title: 'Exportar Meus Dados', onTap: _exportData),

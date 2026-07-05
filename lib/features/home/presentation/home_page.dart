@@ -169,26 +169,39 @@ class _WeatherCard extends StatefulWidget {
 
 class _WeatherCardState extends State<_WeatherCard> {
   Map<String, dynamic>? _weather;
+  Map<String, dynamic>? _suggestion;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadWeather();
+    _loadData();
   }
 
-  Future<void> _loadWeather() async {
+  Future<void> _loadData() async {
     try {
-      final weather = await LocationService.updateWeather();
+      final results = await Future.wait([
+        LocationService.updateWeather(),
+        ApiClient().dio.get('/suggestions/daily').then((r) => r.data as Map<String, dynamic>?).catchError((_) => null),
+      ]);
       if (mounted) {
         setState(() {
-          _weather = weather;
+          _weather = results[0] as Map<String, dynamic>?;
+          _suggestion = results[1] as Map<String, dynamic>?;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _proxyUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.contains('fimgs.net')) {
+      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+    }
+    return url;
   }
 
   @override
@@ -198,92 +211,180 @@ class _WeatherCardState extends State<_WeatherCard> {
     final temp = (_weather?['temperature'] as num?)?.toDouble();
     final city = _weather?['city'] as String?;
     final state = _weather?['state'] as String?;
-    final description = getWeatherDescription(temp);
+
+    // Check if we have a collection-based suggestion
+    final hasPerfumeSuggestion = _suggestion != null &&
+        _suggestion!['perfume_id'] != null &&
+        (_suggestion!['is_owned'] == true || _suggestion!['perfume_name'] != null);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: GestureDetector(
-        onTap: () {
-          final family = temp != null ? getWeatherFamily(temp) : null;
-          if (family != null) {
-            context.push('/explore?family=${Uri.encodeComponent(family.split('/').first)}');
-          } else {
-            context.push('/explore');
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: OlfatoTokens.mist,
-            borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
-            border: Border.all(color: OlfatoTokens.borderLight),
-            boxShadow: [OlfatoTokens.cardShadow],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Left: sun icon + temperature
-                  if (temp != null) ...[
-                    Column(
-                      children: [
-                        const Icon(
-                          Icons.wb_sunny_rounded,
-                          color: OlfatoTokens.amber,
-                          size: 32,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${temp.round()}°',
-                          style: GoogleFonts.inter(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: OlfatoTokens.ink,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 20),
-                  ],
-                  // Right: descriptive text
-                  Expanded(
-                    child: Text(
-                      description,
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: OlfatoTokens.ink,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Location below
-              if (city != null && state != null) ...[
-                const SizedBox(height: 12),
-                Row(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: OlfatoTokens.mist,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.borderLight),
+          boxShadow: [OlfatoTokens.cardShadow],
+        ),
+        child: Row(
+          children: [
+            // Left half: weather data
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  final family = temp != null ? getWeatherFamily(temp) : null;
+                  if (family != null) {
+                    context.push('/explore?family=${Uri.encodeComponent(family.split('/').first)}');
+                  } else {
+                    context.push('/explore');
+                  }
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 14,
-                      color: OlfatoTokens.gray,
-                    ),
-                    const SizedBox(width: 4),
+                    if (temp != null) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.wb_sunny_rounded, color: OlfatoTokens.amber, size: 24),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${temp.round()}°',
+                            style: GoogleFonts.inter(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: OlfatoTokens.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    if (city != null && state != null)
+                      Row(
+                        children: [
+                          Icon(Icons.location_on_outlined, size: 12, color: OlfatoTokens.gray),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              '$city, $state',
+                              style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 8),
                     Text(
-                      '$city, $state',
+                      temp != null ? getWeatherFamily(temp) : 'Versátil',
                       style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: OlfatoTokens.gray,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: OlfatoTokens.plum,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ],
-          ),
+              ),
+            ),
+            // Divider
+            Container(
+              width: 1,
+              height: 70,
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              color: OlfatoTokens.borderLight,
+            ),
+            // Right half: perfume suggestion
+            Expanded(
+              child: hasPerfumeSuggestion
+                  ? _buildPerfumeSuggestion()
+                  : _buildGenericSuggestion(temp),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPerfumeSuggestion() {
+    final perfumeName = _suggestion!['perfume_name'] as String? ?? '';
+    final perfumeId = _suggestion!['perfume_id']?.toString() ?? '';
+    final imageUrl = _proxyUrl(_suggestion!['image_url'] as String?);
+
+    return GestureDetector(
+      onTap: () {
+        if (perfumeId.isNotEmpty) {
+          context.push('/perfume/$perfumeId');
+        }
+      },
+      child: Column(
+        children: [
+          if (imageUrl.isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                imageUrl,
+                height: 44,
+                width: 44,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: OlfatoTokens.plum, size: 28),
+              ),
+            )
+          else
+            const Icon(Icons.local_florist, color: OlfatoTokens.plum, size: 28),
+          const SizedBox(height: 6),
+          Text(
+            perfumeName,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: OlfatoTokens.ink,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Para hoje ✨',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              color: OlfatoTokens.plum,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGenericSuggestion(double? temp) {
+    final family = temp != null ? getWeatherFamily(temp) : 'Versátil';
+    return GestureDetector(
+      onTap: () {
+        context.push('/explore?family=${Uri.encodeComponent(family.split('/').first)}');
+      },
+      child: Column(
+        children: [
+          Icon(Icons.spa_outlined, color: OlfatoTokens.plum, size: 28),
+          const SizedBox(height: 6),
+          Text(
+            family,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: OlfatoTokens.ink,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Família ideal',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              color: OlfatoTokens.plum,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -13,6 +13,7 @@ import '../features/perfume_detail/presentation/perfume_detail_page.dart';
 import '../features/compare/presentation/compare_page.dart';
 import '../features/decant_advisor/presentation/decant_advisor_page.dart';
 import '../features/selection_builder/presentation/selection_builder_page.dart';
+import '../features/wishlist/presentation/wishlist_page.dart';
 import 'main_shell.dart';
 
 final appRouter = GoRouter(
@@ -46,6 +47,7 @@ final appRouter = GoRouter(
         ),
         GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
         GoRoute(path: '/collection', builder: (_, __) => const CollectionPage()),
+        GoRoute(path: '/wishlist', builder: (_, __) => const WishlistPage()),
         GoRoute(path: '/journal', builder: (_, __) => const JournalPage()),
         GoRoute(
           path: '/perfume/:id',

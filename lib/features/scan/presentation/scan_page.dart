@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../app/theme/olfato_tokens.dart';
-import '../../../app/theme/olfato_theme.dart';
 import '../../../core/network/api_client.dart';
-import '../../../shared/widgets/glass_card.dart';
 import '../../collection/presentation/type_selection_dialog.dart';
 
 class ScanPage extends StatefulWidget {
@@ -17,305 +16,325 @@ class ScanPage extends StatefulWidget {
 }
 
 class _ScanPageState extends State<ScanPage> {
-  final _barcodeController = TextEditingController();
-  final _nameSearchController = TextEditingController();
-  bool _isSearching = false;
   bool _isIdentifying = false;
+  bool _cameraAvailable = false;
   Map<String, dynamic>? _foundPerfume;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    // Try to open camera directly on mobile
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!kIsWeb) {
+        _captureFromCamera();
+      } else {
+        // On web, check if camera is available
+        setState(() => _cameraAvailable = true); // Try camera first
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: OlfatoTheme.scannerTheme,
-      child: Scaffold(
-        body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Scan / Adicionar', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text(
-                'Escaneie. Entenda. Escolha.',
-                style: TextStyle(color: OlfatoTokens.vanilla, fontWeight: FontWeight.w600, fontSize: 14),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Escaneie o código de barras ou digite manualmente',
-                style: TextStyle(color: OlfatoTokens.textSecondaryDark),
-              ),
-              const SizedBox(height: 24),
-
-              if (kIsWeb) ...[
-                // Web: search by name
-                GlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Buscar por nome',
-                        style: TextStyle(color: OlfatoTokens.vanilla, fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _nameSearchController,
-                        decoration: InputDecoration(
-                          hintText: 'Nome ou marca do perfume...',
-                          prefixIcon: const Icon(Icons.search, color: OlfatoTokens.textSecondaryDark),
-                          suffixIcon: IconButton(
-                            icon: _isSearching
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.pitanga))
-                                : const Icon(Icons.arrow_forward, color: OlfatoTokens.pitanga),
-                            onPressed: _searchByName,
-                          ),
-                        ),
-                        onSubmitted: (_) => _searchByName(),
-                      ),
-                      const SizedBox(height: 16),
-                      // Upload image button
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _isIdentifying ? null : _uploadImageFromGallery,
-                          icon: _isIdentifying
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.amber))
-                              : const Icon(Icons.photo_library_outlined),
-                          label: Text(_isIdentifying ? 'Identificando...' : 'Enviar foto'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: OlfatoTokens.vanilla,
-                            side: const BorderSide(color: OlfatoTokens.borderDark),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Barcode input (web)
-                GlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Código de barras',
-                        style: TextStyle(color: OlfatoTokens.vanilla, fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _barcodeController,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          hintText: 'Digite o código de barras...',
-                          prefixIcon: const Icon(Icons.barcode_reader, color: OlfatoTokens.textSecondaryDark),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.search, color: OlfatoTokens.pitanga),
-                            onPressed: _searchByBarcode,
-                          ),
-                        ),
-                        onSubmitted: (_) => _searchByBarcode(),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                // Mobile: camera scanner placeholder + barcode input
-                GlassCard(
-                  child: Column(
-                    children: [
-                      Container(
-                        height: 160,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: OlfatoTokens.surfaceDark,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: OlfatoTokens.borderDark),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.qr_code_scanner, size: 48, color: OlfatoTokens.textSecondaryDark),
-                            SizedBox(height: 8),
-                            Text('Câmera disponível no app mobile', style: TextStyle(color: OlfatoTokens.textSecondaryDark, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _barcodeController,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          hintText: 'Digite o código de barras...',
-                          prefixIcon: const Icon(Icons.barcode_reader, color: OlfatoTokens.textSecondaryDark),
-                          suffixIcon: IconButton(
-                            icon: _isSearching
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.pitanga))
-                                : const Icon(Icons.search, color: OlfatoTokens.pitanga),
-                            onPressed: _searchByBarcode,
-                          ),
-                        ),
-                        onSubmitted: (_) => _searchByBarcode(),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
-
-              // Error message
-              if (_error != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: OlfatoTokens.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline, color: OlfatoTokens.error, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(_error!, style: const TextStyle(color: OlfatoTokens.error, fontSize: 13))),
-                    ],
-                  ),
-                ),
-
-              // Found perfume
-              if (_foundPerfume != null) ...[
-                const SizedBox(height: 16),
-                const Text('Perfume Encontrado!', style: TextStyle(color: OlfatoTokens.amber, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                GlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(color: OlfatoTokens.surfaceDark, borderRadius: BorderRadius.circular(8)),
-                            child: const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 30),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_foundPerfume!['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                Text(
-                                  '${_foundPerfume!['brand']} • ${_foundPerfume!['concentration'] ?? ''}',
-                                  style: const TextStyle(color: OlfatoTokens.textSecondaryDark),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      if (_foundPerfume!['top_notes'] != null)
-                        _buildNotes('Topo', _foundPerfume!['top_notes']),
-                      if (_foundPerfume!['heart_notes'] != null)
-                        _buildNotes('Coração', _foundPerfume!['heart_notes']),
-                      if (_foundPerfume!['base_notes'] != null)
-                        _buildNotes('Base', _foundPerfume!['base_notes']),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _addToCollection,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Adicionar à Coleção'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 24),
-
-              // Quick search alternative
-              OutlinedButton.icon(
-                onPressed: () {
-                  context.push('/explore');
-                },
-                icon: const Icon(Icons.search),
-                label: const Text('Buscar por nome ou marca'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: OlfatoTokens.vanilla,
-                  side: const BorderSide(color: OlfatoTokens.borderDark),
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: OlfatoTokens.vanilla,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Identificar Perfume',
+          style: GoogleFonts.ebGaramond(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: OlfatoTokens.ink,
           ),
         ),
+        centerTitle: true,
       ),
+      body: _isIdentifying ? _buildIdentifying() : _buildMain(),
+    );
+  }
+
+  Widget _buildIdentifying() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(color: OlfatoTokens.plum),
+          const SizedBox(height: 20),
+          Text(
+            'Identificando perfume...',
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              color: OlfatoTokens.ink,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'A Aura está analisando a imagem',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: OlfatoTokens.gray,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _searchByBarcode() async {
-    final barcode = _barcodeController.text.trim();
-    if (barcode.isEmpty) return;
+  Widget _buildMain() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          // Camera guide frame
+          _buildCameraFrame(),
+          const SizedBox(height: 24),
 
-    setState(() {
-      _isSearching = true;
-      _error = null;
-      _foundPerfume = null;
-    });
+          // Error message
+          if (_error != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: OlfatoTokens.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                border: Border.all(color: OlfatoTokens.error.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: OlfatoTokens.error, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.error),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
-    try {
-      final response = await ApiClient().dio.get('/perfumes/barcode/$barcode');
-      setState(() {
-        _foundPerfume = response.data;
-        _isSearching = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Perfume não encontrado com esse código. Tente buscar pelo nome.';
-        _isSearching = false;
-      });
-    }
+          // Found perfume result
+          if (_foundPerfume != null) ...[
+            _buildResult(),
+            const SizedBox(height: 16),
+          ],
+
+          // Capture button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _captureFromCamera,
+              icon: const Icon(Icons.camera_alt, size: 20),
+              label: Text(
+                'Tirar Foto',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: OlfatoTokens.plum,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Upload fallback
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _uploadFromGallery,
+              icon: const Icon(Icons.photo_library_outlined, size: 18),
+              label: Text(
+                'Escolher da galeria',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: OlfatoTokens.plum,
+                side: const BorderSide(color: OlfatoTokens.borderLight),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Future<void> _searchByName() async {
-    final query = _nameSearchController.text.trim();
-    if (query.isEmpty) return;
+  Widget _buildCameraFrame() {
+    return Container(
+      width: double.infinity,
+      height: 280,
+      decoration: BoxDecoration(
+        color: OlfatoTokens.mist,
+        borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+        border: Border.all(color: OlfatoTokens.borderLight),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Guide frame (rounded rect corners)
+          CustomPaint(
+            size: const Size(180, 220),
+            painter: _GuideFramePainter(color: OlfatoTokens.plum),
+          ),
+          // Instruction text
+          Positioned(
+            bottom: 20,
+            child: Text(
+              'Centralize o frasco',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: OlfatoTokens.gray,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          // Camera icon in center
+          Icon(
+            Icons.local_florist_outlined,
+            size: 40,
+            color: OlfatoTokens.plum.withValues(alpha: 0.3),
+          ),
+        ],
+      ),
+    );
+  }
 
-    setState(() {
-      _isSearching = true;
-      _error = null;
-      _foundPerfume = null;
-    });
+  Widget _buildResult() {
+    final name = _foundPerfume!['name'] as String? ?? '';
+    final brand = _foundPerfume!['brand'] as String? ?? '';
+    final perfumeId = _foundPerfume!['id']?.toString() ?? '';
 
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OlfatoTokens.green.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+        border: Border.all(color: OlfatoTokens.green.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.check_circle, color: OlfatoTokens.green, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Perfume Identificado!',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: OlfatoTokens.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            name,
+            style: GoogleFonts.ebGaramond(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: OlfatoTokens.ink,
+            ),
+          ),
+          Text(
+            brand,
+            style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (perfumeId.isNotEmpty) {
+                      context.push('/perfume/$perfumeId');
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: OlfatoTokens.plum,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                    ),
+                  ),
+                  child: Text('Ver ficha', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _addToCollection,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: OlfatoTokens.plum,
+                    side: const BorderSide(color: OlfatoTokens.plum),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                    ),
+                  ),
+                  child: Text('Adicionar', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _captureFromCamera() async {
     try {
-      final response = await ApiClient().dio.get('/perfumes/search', queryParameters: {'q': query});
-      final results = response.data as List;
-      if (results.isNotEmpty) {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        imageQuality: 85,
+      );
+      if (image == null) return;
+      await _identifyImage(image);
+    } catch (e) {
+      // Camera not available — fall back to gallery
+      if (mounted) {
         setState(() {
-          _foundPerfume = results.first as Map<String, dynamic>;
-          _isSearching = false;
-        });
-      } else {
-        setState(() {
-          _error = 'Nenhum perfume encontrado. Tente outro nome ou marca.';
-          _isSearching = false;
+          _error = 'Câmera não disponível. Use a galeria para enviar uma foto.';
         });
       }
-    } catch (e) {
-      setState(() {
-        _error = 'Erro ao buscar. Tente novamente.';
-        _isSearching = false;
-      });
     }
   }
 
-  Future<void> _uploadImageFromGallery() async {
+  Future<void> _uploadFromGallery() async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 85,
+      );
+      if (image == null) return;
+      await _identifyImage(image);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Erro ao selecionar imagem.');
+      }
+    }
+  }
+
+  Future<void> _identifyImage(XFile image) async {
     setState(() {
       _isIdentifying = true;
       _error = null;
@@ -323,13 +342,6 @@ class _ScanPageState extends State<ScanPage> {
     });
 
     try {
-      final picker = ImagePicker();
-      final image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, imageQuality: 85);
-      if (image == null) {
-        setState(() => _isIdentifying = false);
-        return;
-      }
-
       final bytes = await image.readAsBytes();
       final base64Image = base64Encode(bytes);
 
@@ -358,9 +370,8 @@ class _ScanPageState extends State<ScanPage> {
   Future<void> _addToCollection() async {
     if (_foundPerfume == null) return;
 
-    // Require type selection before adding
     final selectedType = await showTypeSelectionDialog(context);
-    if (selectedType == null) return; // user dismissed
+    if (selectedType == null) return;
 
     try {
       await ApiClient().dio.post('/collection', data: {
@@ -369,40 +380,83 @@ class _ScanPageState extends State<ScanPage> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_foundPerfume!['name']} adicionado à coleção!'), backgroundColor: OlfatoTokens.amber),
+          SnackBar(
+            content: Text('${_foundPerfume!['name']} adicionado à coleção!'),
+            backgroundColor: OlfatoTokens.plum,
+          ),
         );
-        setState(() {
-          _foundPerfume = null;
-          _barcodeController.clear();
-        });
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfume já está na coleção'), backgroundColor: OlfatoTokens.error),
+          const SnackBar(
+            content: Text('Perfume já está na coleção'),
+            backgroundColor: OlfatoTokens.error,
+          ),
         );
       }
     }
   }
+}
 
-  Widget _buildNotes(String label, List<dynamic> notes) {
-    if (notes.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 65, child: Text('$label:', style: const TextStyle(color: OlfatoTokens.textSecondaryDark, fontSize: 12))),
-          Expanded(child: Text(notes.join(', '), style: const TextStyle(fontSize: 12))),
-        ],
-      ),
+/// Paints the centering guide frame corners for camera capture
+class _GuideFramePainter extends CustomPainter {
+  final Color color;
+
+  _GuideFramePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.6)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    const cornerLength = 30.0;
+    const radius = 12.0;
+
+    // Top-left corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, cornerLength)
+        ..lineTo(0, radius)
+        ..arcToPoint(Offset(radius, 0), radius: const Radius.circular(radius))
+        ..lineTo(cornerLength, 0),
+      paint,
+    );
+
+    // Top-right corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width - cornerLength, 0)
+        ..lineTo(size.width - radius, 0)
+        ..arcToPoint(Offset(size.width, radius), radius: const Radius.circular(radius))
+        ..lineTo(size.width, cornerLength),
+      paint,
+    );
+
+    // Bottom-left corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, size.height - cornerLength)
+        ..lineTo(0, size.height - radius)
+        ..arcToPoint(Offset(radius, size.height), radius: const Radius.circular(radius))
+        ..lineTo(cornerLength, size.height),
+      paint,
+    );
+
+    // Bottom-right corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width - cornerLength, size.height)
+        ..lineTo(size.width - radius, size.height)
+        ..arcToPoint(Offset(size.width, size.height - radius), radius: const Radius.circular(radius))
+        ..lineTo(size.width, size.height - cornerLength),
+      paint,
     );
   }
 
   @override
-  void dispose() {
-    _barcodeController.dispose();
-    _nameSearchController.dispose();
-    super.dispose();
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

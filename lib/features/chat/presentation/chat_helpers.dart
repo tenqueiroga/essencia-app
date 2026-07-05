@@ -19,23 +19,24 @@ class PerfumeSuggestion {
 
 /// Parses Aura response content to detect perfume recommendations.
 ///
-/// Looks for patterns like:
+/// Very permissive — handles many GPT output variations:
 /// - `**Name** - Brand - XX% [id:UUID]`
-/// - `**Name** - Brand - XX%`
-/// - `Name (Brand) - XX%`
+/// - `**Name** — Brand — 93% match`
+/// - `**Name** - Brand - 85% compatível`
+/// - `Name (Brand) — XX%`
 /// - `1. Name - Brand - XX%`
+/// - Lines with just `Name - Brand - XX%`
 ///
-/// Extracts optional `[id:VALUE]` token for direct navigation.
+/// Strips trailing words like "match", "compatível", "de compatibilidade".
 /// Only suggestions with scores in [0, 100] and non-empty name/house are included.
 List<PerfumeSuggestion> parsePerfumeSuggestions(String content) {
   final suggestions = <PerfumeSuggestion>[];
 
-  // Pattern to extract optional [id:VALUE] token
-  final idPattern = RegExp(r'\[id:([^\]]+)\]');
-
-  // Pattern 1: **Name** - Brand - XX% [id:VALUE]
+  // Pattern 1: **Name** - Brand - XX% (with optional trailing text and [id:VALUE])
+  // Accepts -, –, — as separators. Percentage can be followed by extra text.
   final boldPattern = RegExp(
-    r'\*\*(.+?)\*\*\s*[-–—]?\s*(?:(?:de|by)\s+)?(.+?)\s*[-–—]?\s*(\d{1,3})%(?:\s*\[id:([^\]]+)\])?',
+    r'\*\*(.+?)\*\*\s*[-–—]\s*(.+?)\s*[-–—]\s*(\d{1,3})\s*%(?:\s*(?:match|compatível|de compatibilidade))?(?:\s*\[id:([^\]]+)\])?',
+    caseSensitive: false,
   );
   for (final match in boldPattern.allMatches(content)) {
     final name = match.group(1)!.trim();
@@ -54,9 +55,32 @@ List<PerfumeSuggestion> parsePerfumeSuggestions(String content) {
   }
   if (suggestions.isNotEmpty) return suggestions;
 
-  // Pattern 2: Name (Brand) - XX% [id:VALUE]
+  // Pattern 1b: **Name** (Brand) — XX% (brand in parentheses after bold name)
+  final boldParenPattern = RegExp(
+    r'\*\*(.+?)\*\*\s*\(([^)]+)\)\s*[-–—]?\s*(\d{1,3})\s*%(?:\s*(?:match|compatível))?(?:\s*\[id:([^\]]+)\])?',
+    caseSensitive: false,
+  );
+  for (final match in boldParenPattern.allMatches(content)) {
+    final name = match.group(1)!.trim();
+    final house = match.group(2)!.trim();
+    final score = int.tryParse(match.group(3)!) ?? -1;
+    final id = match.group(4)?.trim();
+    if (score >= 0 && score <= 100 && name.isNotEmpty && house.isNotEmpty) {
+      suggestions.add(PerfumeSuggestion(
+        name: name,
+        house: house,
+        compatibility: score,
+        id: id,
+        imageUrl: id != null ? _resolveImageUrl(id) : null,
+      ));
+    }
+  }
+  if (suggestions.isNotEmpty) return suggestions;
+
+  // Pattern 2: Name (Brand) - XX%
   final parenPattern = RegExp(
-    r'([A-Z][^()\n]+?)\s*\(([^)]+)\)\s*[-–—]?\s*(\d{1,3})%(?:\s*\[id:([^\]]+)\])?',
+    r'([A-Z][^()\n]+?)\s*\(([^)]+)\)\s*[-–—]?\s*(\d{1,3})\s*%(?:\s*(?:match|compatível))?(?:\s*\[id:([^\]]+)\])?',
+    caseSensitive: false,
   );
   for (final match in parenPattern.allMatches(content)) {
     final name = match.group(1)!.trim();
@@ -75,9 +99,10 @@ List<PerfumeSuggestion> parsePerfumeSuggestions(String content) {
   }
   if (suggestions.isNotEmpty) return suggestions;
 
-  // Pattern 3: numbered list "1. Name - Brand - XX% [id:VALUE]"
+  // Pattern 3: numbered list "1. Name - Brand - XX%"
   final numberedPattern = RegExp(
-    r'\d+\.\s*(.+?)\s*[-–—]\s*(.+?)\s*[-–—]\s*(\d{1,3})%(?:\s*\[id:([^\]]+)\])?',
+    r'\d+\.\s*(.+?)\s*[-–—]\s*(.+?)\s*[-–—]\s*(\d{1,3})\s*%(?:\s*(?:match|compatível))?(?:\s*\[id:([^\]]+)\])?',
+    caseSensitive: false,
   );
   for (final match in numberedPattern.allMatches(content)) {
     final name = match.group(1)!.trim();
@@ -94,6 +119,28 @@ List<PerfumeSuggestion> parsePerfumeSuggestions(String content) {
       ));
     }
   }
+  if (suggestions.isNotEmpty) return suggestions;
+
+  // Pattern 4: Fallback — any line with **Name** followed by text and a number%
+  // Catches formats like "**Acqua di Giò** de Giorgio Armani 93%"
+  final loosePattern = RegExp(
+    r'\*\*(.+?)\*\*\s*(?:[-–—]\s*|de\s+|by\s+)?(.+?)\s+(\d{1,3})\s*%',
+    caseSensitive: false,
+  );
+  for (final match in loosePattern.allMatches(content)) {
+    final name = match.group(1)!.trim();
+    var house = match.group(2)!.trim();
+    final score = int.tryParse(match.group(3)!) ?? -1;
+    // Clean house: remove trailing separators and "match"/"compatível"
+    house = house.replaceAll(RegExp(r'[-–—]\s*$'), '').trim();
+    if (score >= 0 && score <= 100 && name.isNotEmpty && house.isNotEmpty && house.length < 60) {
+      suggestions.add(PerfumeSuggestion(
+        name: name,
+        house: house,
+        compatibility: score,
+      ));
+    }
+  }
 
   return suggestions;
 }
@@ -104,12 +151,12 @@ String removePerfumePatterns(String content) {
   final lines = content.split('\n');
   final cleaned = lines.where((line) {
     final trimmed = line.trim();
-    // Remove lines that are purely perfume entries
-    if (RegExp(r'^\d+\.\s*.+[-–—].+[-–—]\s*\d{1,3}%').hasMatch(trimmed)) {
+    // Remove lines that match perfume card patterns
+    if (RegExp(r'^\d+\.\s*.+[-–—].+[-–—]\s*\d{1,3}\s*%').hasMatch(trimmed)) {
       return false;
     }
-    if (RegExp(r'^\*\*.+\*\*\s*[-–—]?\s*.+\s*[-–—]?\s*\d{1,3}%')
-        .hasMatch(trimmed)) {
+    if (RegExp(r'^\*\*.+\*\*\s*[-–—(]').hasMatch(trimmed) &&
+        RegExp(r'\d{1,3}\s*%').hasMatch(trimmed)) {
       return false;
     }
     return true;
