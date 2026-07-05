@@ -7,13 +7,13 @@ class MainShell extends StatelessWidget {
 
   const MainShell({super.key, required this.child});
 
-  /// Tab definitions: Home, Explorar, Scan (center elevated), Wishlist, Aura.
+  /// Tab definitions: Home, Explorar, Scan (center elevated), Coleção, Aura.
   /// Profile tab removed — accessed via avatar in Home header.
   static const _tabs = [
     {'path': '/', 'icon': Icons.home_outlined, 'activeIcon': Icons.home_rounded, 'label': 'Home'},
     {'path': '/explore', 'icon': Icons.search_rounded, 'activeIcon': Icons.search_rounded, 'label': 'Explorar'},
     {'path': '/scan', 'icon': Icons.crop_free, 'activeIcon': Icons.crop_free, 'label': 'Scan'},
-    {'path': '/wishlist', 'icon': Icons.favorite_border_rounded, 'activeIcon': Icons.favorite_rounded, 'label': 'Wishlist'},
+    {'path': '/collection', 'icon': Icons.collections_bookmark_outlined, 'activeIcon': Icons.collections_bookmark, 'label': 'Coleção'},
     {'path': '/chat', 'icon': Icons.auto_awesome_outlined, 'activeIcon': Icons.auto_awesome, 'label': 'Aura'},
   ];
 

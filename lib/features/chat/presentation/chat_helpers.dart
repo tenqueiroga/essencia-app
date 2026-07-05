@@ -121,23 +121,22 @@ List<PerfumeSuggestion> parsePerfumeSuggestions(String content) {
   }
   if (suggestions.isNotEmpty) return suggestions;
 
-  // Pattern 4: Fallback — any line with **Name** followed by text and a number%
-  // Catches formats like "**Acqua di Giò** de Giorgio Armani 93%"
-  final loosePattern = RegExp(
-    r'\*\*(.+?)\*\*\s*(?:[-–—]\s*|de\s+|by\s+)?(.+?)\s+(\d{1,3})\s*%',
-    caseSensitive: false,
+  // Pattern 4: Fallback — **Name** followed by "da/de" Brand (no % required)
+  // Catches formats like "**Cool Water** da Davidoff" when GPT ignores format rules
+  // Assigns a default 80% compatibility since GPT didn't provide one
+  final noPercentPattern = RegExp(
+    r'\*\*(.+?)\*\*\s*(?:[-–—]\s*|da\s+|de\s+|by\s+)([A-Z][A-Za-zÀ-ÿ& ]+)',
   );
-  for (final match in loosePattern.allMatches(content)) {
+  for (final match in noPercentPattern.allMatches(content)) {
     final name = match.group(1)!.trim();
     var house = match.group(2)!.trim();
-    final score = int.tryParse(match.group(3)!) ?? -1;
-    // Clean house: remove trailing separators and "match"/"compatível"
-    house = house.replaceAll(RegExp(r'[-–—]\s*$'), '').trim();
-    if (score >= 0 && score <= 100 && name.isNotEmpty && house.isNotEmpty && house.length < 60) {
+    // Clean trailing common words
+    house = house.replaceAll(RegExp(r'\s+(seria|também|é|pode|tem|combina).*', caseSensitive: false), '').trim();
+    if (name.isNotEmpty && house.isNotEmpty && house.length < 40 && house.length > 2) {
       suggestions.add(PerfumeSuggestion(
         name: name,
         house: house,
-        compatibility: score,
+        compatibility: 80, // default when GPT doesn't provide %
       ));
     }
   }
@@ -151,12 +150,17 @@ String removePerfumePatterns(String content) {
   final lines = content.split('\n');
   final cleaned = lines.where((line) {
     final trimmed = line.trim();
-    // Remove lines that match perfume card patterns
+    // Remove lines that match numbered perfume patterns with %
     if (RegExp(r'^\d+\.\s*.+[-–—].+[-–—]\s*\d{1,3}\s*%').hasMatch(trimmed)) {
       return false;
     }
+    // Remove lines that are bold perfume entries with %
     if (RegExp(r'^\*\*.+\*\*\s*[-–—(]').hasMatch(trimmed) &&
         RegExp(r'\d{1,3}\s*%').hasMatch(trimmed)) {
+      return false;
+    }
+    // Remove lines that are just "**Name** - Brand - XX%"
+    if (RegExp(r'^\*\*.+\*\*\s*[-–—]\s*.+[-–—]\s*\d{1,3}\s*%').hasMatch(trimmed)) {
       return false;
     }
     return true;

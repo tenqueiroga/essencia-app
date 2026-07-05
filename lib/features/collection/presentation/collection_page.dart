@@ -254,7 +254,7 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title + Refresh
+        // Title + Wishlist + Refresh
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
           child: Row(
@@ -268,6 +268,8 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
                 ),
               ),
               const Spacer(),
+              _WishlistButton(onTap: () => context.push('/wishlist')),
+              const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.refresh,
                     color: OlfatoTokens.gray, size: 20),
@@ -767,6 +769,50 @@ class _CollectionGridItem extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 9,
           color: OlfatoTokens.gray,
+        ),
+      ),
+    );
+  }
+}
+
+
+// ─── Wishlist Button ──────────────────────────────────────────────────────────
+
+class _WishlistButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _WishlistButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Ver Wishlist',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.favorite_border_rounded,
+                  color: OlfatoTokens.pitanga,
+                  size: 18,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Wishlist',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: OlfatoTokens.pitanga,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
