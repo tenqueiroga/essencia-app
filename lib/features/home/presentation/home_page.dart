@@ -182,7 +182,11 @@ class _WeatherCardState extends State<_WeatherCard> {
     try {
       final results = await Future.wait([
         LocationService.updateWeather(),
-        ApiClient().dio.get('/suggestions/daily').then((r) => r.data as Map<String, dynamic>?).catchError((_) => null),
+        ApiClient().dio.get('/suggestions/daily').then((r) {
+          final data = r.data as Map<String, dynamic>?;
+          // API returns { suggestion: { perfume: {...}, is_owned: bool, ... } }
+          return data?['suggestion'] as Map<String, dynamic>?;
+        }).catchError((_) => null),
       ]);
       if (mounted) {
         setState(() {
@@ -213,9 +217,8 @@ class _WeatherCardState extends State<_WeatherCard> {
     final state = _weather?['state'] as String?;
 
     // Check if we have a collection-based suggestion
-    final hasPerfumeSuggestion = _suggestion != null &&
-        _suggestion!['perfume_id'] != null &&
-        (_suggestion!['is_owned'] == true || _suggestion!['perfume_name'] != null);
+    final perfumeData = _suggestion?['perfume'] as Map<String, dynamic>?;
+    final hasPerfumeSuggestion = perfumeData != null && perfumeData['id'] != null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -229,9 +232,10 @@ class _WeatherCardState extends State<_WeatherCard> {
         ),
         child: Row(
           children: [
-            // Left half: weather data
+            // Left half: weather data — clickable to explore
             Expanded(
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () {
                   final family = temp != null ? getWeatherFamily(temp) : null;
                   if (family != null) {
@@ -307,11 +311,13 @@ class _WeatherCardState extends State<_WeatherCard> {
   }
 
   Widget _buildPerfumeSuggestion() {
-    final perfumeName = _suggestion!['perfume_name'] as String? ?? '';
-    final perfumeId = _suggestion!['perfume_id']?.toString() ?? '';
-    final imageUrl = _proxyUrl(_suggestion!['image_url'] as String?);
+    final perfume = _suggestion!['perfume'] as Map<String, dynamic>;
+    final perfumeName = perfume['name'] as String? ?? '';
+    final perfumeId = perfume['id']?.toString() ?? '';
+    final imageUrl = _proxyUrl(perfume['image_url'] as String?);
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         if (perfumeId.isNotEmpty) {
           context.push('/perfume/$perfumeId');
@@ -360,6 +366,7 @@ class _WeatherCardState extends State<_WeatherCard> {
   Widget _buildGenericSuggestion(double? temp) {
     final family = temp != null ? getWeatherFamily(temp) : 'Versátil';
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         context.push('/explore?family=${Uri.encodeComponent(family.split('/').first)}');
       },

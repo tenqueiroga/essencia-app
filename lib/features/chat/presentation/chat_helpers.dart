@@ -121,22 +121,20 @@ List<PerfumeSuggestion> parsePerfumeSuggestions(String content) {
   }
   if (suggestions.isNotEmpty) return suggestions;
 
-  // Pattern 4: Fallback — **Name** followed by "da/de" Brand (no % required)
-  // Catches formats like "**Cool Water** da Davidoff" when GPT ignores format rules
-  // Assigns a default 80% compatibility since GPT didn't provide one
+  // Pattern 4: Fallback — **Name** followed by "da/de/by/-" Brand (no % required)
+  // Catches "**Cool Water** da Davidoff seria uma ótima escolha"
+  // Brand = sequence of capitalized words (stops at first lowercase-starting word)
   final noPercentPattern = RegExp(
-    r'\*\*(.+?)\*\*\s*(?:[-–—]\s*|da\s+|de\s+|by\s+)([A-Z][A-Za-zÀ-ÿ& ]+)',
+    r'\*\*(.+?)\*\*\s*(?:[-\u2013\u2014]\s*|da\s+|de\s+|do\s+|by\s+)((?:[A-Z\u00C0-\u00D6][A-Za-z\u00C0-\u00FF.&]+(?:\s+|$))+)',
   );
   for (final match in noPercentPattern.allMatches(content)) {
     final name = match.group(1)!.trim();
-    var house = match.group(2)!.trim();
-    // Clean trailing common words
-    house = house.replaceAll(RegExp(r'\s+(seria|também|é|pode|tem|combina).*', caseSensitive: false), '').trim();
-    if (name.isNotEmpty && house.isNotEmpty && house.length < 40 && house.length > 2) {
+    final house = match.group(2)!.trim();
+    if (name.isNotEmpty && house.isNotEmpty && house.length >= 2 && house.length < 45) {
       suggestions.add(PerfumeSuggestion(
         name: name,
         house: house,
-        compatibility: 80, // default when GPT doesn't provide %
+        compatibility: 80,
       ));
     }
   }
