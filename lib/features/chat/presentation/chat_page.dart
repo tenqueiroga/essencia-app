@@ -398,12 +398,61 @@ class _ChatPageState extends State<ChatPage> {
           borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
           border: Border.all(color: OlfatoTokens.borderLight, width: 0.5),
         ),
-        child: Text(
-          content,
-          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.ink),
-        ),
+        child: isUser
+            ? Text(
+                content,
+                style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.ink),
+              )
+            : _buildRichText(content),
       ),
     );
+  }
+
+  /// Renders markdown-style formatting: **bold**, *italic*, and plain text.
+  Widget _buildRichText(String content) {
+    final spans = <InlineSpan>[];
+    final pattern = RegExp(r'\*\*(.+?)\*\*|\*(.+?)\*');
+    int lastEnd = 0;
+
+    for (final match in pattern.allMatches(content)) {
+      // Add plain text before this match
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(
+          text: content.substring(lastEnd, match.start),
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.ink),
+        ));
+      }
+
+      if (match.group(1) != null) {
+        // **bold**
+        spans.add(TextSpan(
+          text: match.group(1),
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.ink, fontWeight: FontWeight.w700),
+        ));
+      } else if (match.group(2) != null) {
+        // *italic*
+        spans.add(TextSpan(
+          text: match.group(2),
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.ink, fontStyle: FontStyle.italic),
+        ));
+      }
+
+      lastEnd = match.end;
+    }
+
+    // Add remaining plain text
+    if (lastEnd < content.length) {
+      spans.add(TextSpan(
+        text: content.substring(lastEnd),
+        style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.ink),
+      ));
+    }
+
+    if (spans.isEmpty) {
+      return Text(content, style: GoogleFonts.inter(fontSize: 14, height: 1.5, color: OlfatoTokens.ink));
+    }
+
+    return RichText(text: TextSpan(children: spans));
   }
 
   Widget _buildErrorMessage(String content) {
