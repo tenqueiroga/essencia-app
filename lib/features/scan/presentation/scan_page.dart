@@ -17,23 +17,8 @@ class ScanPage extends StatefulWidget {
 
 class _ScanPageState extends State<ScanPage> {
   bool _isIdentifying = false;
-  bool _cameraAvailable = false;
   Map<String, dynamic>? _foundPerfume;
   String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    // Try to open camera directly on mobile
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!kIsWeb) {
-        _captureFromCamera();
-      } else {
-        // On web, check if camera is available
-        setState(() => _cameraAvailable = true); // Try camera first
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,163 +37,191 @@ class _ScanPageState extends State<ScanPage> {
         ),
         centerTitle: true,
       ),
-      body: _isIdentifying ? _buildIdentifying() : _buildMain(),
-    );
-  }
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            // Camera frame — tappable to open camera
+            _buildCameraFrame(),
+            const SizedBox(height: 20),
 
-  Widget _buildIdentifying() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(color: OlfatoTokens.plum),
-          const SizedBox(height: 20),
-          Text(
-            'Identificando perfume...',
-            style: GoogleFonts.inter(
-              fontSize: 15,
-              color: OlfatoTokens.ink,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'A Aura está analisando a imagem',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: OlfatoTokens.gray,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMain() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          // Camera guide frame
-          _buildCameraFrame(),
-          const SizedBox(height: 24),
-
-          // Error message
-          if (_error != null) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: OlfatoTokens.error.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                border: Border.all(color: OlfatoTokens.error.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: OlfatoTokens.error, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.error),
+            // Buttons row
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isIdentifying ? null : _captureFromCamera,
+                    icon: const Icon(Icons.camera_alt, size: 18),
+                    label: Text('Tirar Foto', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: OlfatoTokens.plum,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: OlfatoTokens.plum.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          // Found perfume result
-          if (_foundPerfume != null) ...[
-            _buildResult(),
-            const SizedBox(height: 16),
-          ],
-
-          // Capture button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _captureFromCamera,
-              icon: const Icon(Icons.camera_alt, size: 20),
-              label: Text(
-                'Tirar Foto',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: OlfatoTokens.plum,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Upload fallback
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _uploadFromGallery,
-              icon: const Icon(Icons.photo_library_outlined, size: 18),
-              label: Text(
-                'Escolher da galeria',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: OlfatoTokens.plum,
-                side: const BorderSide(color: OlfatoTokens.borderLight),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isIdentifying ? null : _uploadFromGallery,
+                    icon: const Icon(Icons.photo_library_outlined, size: 16),
+                    label: Text('Galeria', style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: OlfatoTokens.plum,
+                      side: const BorderSide(color: OlfatoTokens.borderLight),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+
+            // Result area: loading / error / result
+            _buildResultArea(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildCameraFrame() {
-    return Container(
-      width: double.infinity,
-      height: 280,
-      decoration: BoxDecoration(
-        color: OlfatoTokens.mist,
-        borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
-        border: Border.all(color: OlfatoTokens.borderLight),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Guide frame (rounded rect corners)
-          CustomPaint(
-            size: const Size(180, 220),
-            painter: _GuideFramePainter(color: OlfatoTokens.plum),
-          ),
-          // Instruction text
-          Positioned(
-            bottom: 20,
-            child: Text(
-              'Centralize o frasco',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: OlfatoTokens.gray,
-                fontWeight: FontWeight.w500,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _isIdentifying ? null : _captureFromCamera,
+      child: Container(
+        width: double.infinity,
+        height: 280,
+        decoration: BoxDecoration(
+          color: OlfatoTokens.mist,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.borderLight),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Guide frame corners
+            CustomPaint(
+              size: const Size(180, 220),
+              painter: _GuideFramePainter(color: OlfatoTokens.plum),
+            ),
+            // Center icon
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.camera_alt_outlined,
+                  size: 40,
+                  color: OlfatoTokens.plum.withValues(alpha: 0.4),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Toque para abrir a câmera',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: OlfatoTokens.gray,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            // Bottom instruction
+            Positioned(
+              bottom: 16,
+              child: Text(
+                'Centralize o frasco na foto',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: OlfatoTokens.plum,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-          // Camera icon in center
-          Icon(
-            Icons.local_florist_outlined,
-            size: 40,
-            color: OlfatoTokens.plum.withValues(alpha: 0.3),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildResultArea() {
+    // Loading state
+    if (_isIdentifying) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: OlfatoTokens.plum.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                color: OlfatoTokens.plum,
+                strokeWidth: 2.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Identificando perfume...',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: OlfatoTokens.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'A Aura está analisando a imagem',
+              style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Error state
+    if (_error != null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: OlfatoTokens.error.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.error.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: OlfatoTokens.error, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                _error!,
+                style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.error),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Success state
+    if (_foundPerfume != null) {
+      return _buildResult();
+    }
+
+    // Empty — no action taken yet
+    return const SizedBox.shrink();
   }
 
   Widget _buildResult() {
@@ -250,27 +263,20 @@ class _ScanPageState extends State<ScanPage> {
               color: OlfatoTokens.ink,
             ),
           ),
-          Text(
-            brand,
-            style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
-          ),
+          Text(brand, style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray)),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    if (perfumeId.isNotEmpty) {
-                      context.push('/perfume/$perfumeId');
-                    }
+                    if (perfumeId.isNotEmpty) context.push('/perfume/$perfumeId');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: OlfatoTokens.plum,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl)),
                   ),
                   child: Text('Ver ficha', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                 ),
@@ -283,9 +289,7 @@ class _ScanPageState extends State<ScanPage> {
                     foregroundColor: OlfatoTokens.plum,
                     side: const BorderSide(color: OlfatoTokens.plum),
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl)),
                   ),
                   child: Text('Adicionar', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                 ),
@@ -298,26 +302,39 @@ class _ScanPageState extends State<ScanPage> {
   }
 
   Future<void> _captureFromCamera() async {
+    // Clear previous state immediately
+    setState(() {
+      _error = null;
+      _foundPerfume = null;
+    });
+
     try {
       final picker = ImagePicker();
       final image = await picker.pickImage(
         source: ImageSource.camera,
         maxWidth: 1024,
         imageQuality: 85,
+        preferredCameraDevice: CameraDevice.rear,
       );
       if (image == null) return;
       await _identifyImage(image);
     } catch (e) {
-      // Camera not available — fall back to gallery
+      // Camera not available on web — fall back to gallery
       if (mounted) {
         setState(() {
-          _error = 'Câmera não disponível. Use a galeria para enviar uma foto.';
+          _error = 'Câmera não disponível neste navegador. Use a galeria.';
         });
       }
     }
   }
 
   Future<void> _uploadFromGallery() async {
+    // Clear previous state immediately
+    setState(() {
+      _error = null;
+      _foundPerfume = null;
+    });
+
     try {
       final picker = ImagePicker();
       final image = await picker.pickImage(
@@ -349,21 +366,27 @@ class _ScanPageState extends State<ScanPage> {
       final data = response.data as Map<String, dynamic>;
 
       if (data['identified'] == true && data['perfume'] != null) {
-        setState(() {
-          _foundPerfume = data['perfume'] as Map<String, dynamic>;
-          _isIdentifying = false;
-        });
+        if (mounted) {
+          setState(() {
+            _foundPerfume = data['perfume'] as Map<String, dynamic>;
+            _isIdentifying = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            _error = data['message'] as String? ?? 'Perfume não identificado. Tente com outra foto.';
+            _isIdentifying = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _error = data['message'] as String? ?? 'Perfume não identificado. Tente com outra foto.';
+          _error = 'Erro ao identificar. Tente novamente.';
           _isIdentifying = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        _error = 'Erro ao identificar. Tente novamente.';
-        _isIdentifying = false;
-      });
     }
   }
 
@@ -399,7 +422,7 @@ class _ScanPageState extends State<ScanPage> {
   }
 }
 
-/// Paints the centering guide frame corners for camera capture
+/// Paints the centering guide frame corners
 class _GuideFramePainter extends CustomPainter {
   final Color color;
 
@@ -416,7 +439,7 @@ class _GuideFramePainter extends CustomPainter {
     const cornerLength = 30.0;
     const radius = 12.0;
 
-    // Top-left corner
+    // Top-left
     canvas.drawPath(
       Path()
         ..moveTo(0, cornerLength)
@@ -426,7 +449,7 @@ class _GuideFramePainter extends CustomPainter {
       paint,
     );
 
-    // Top-right corner
+    // Top-right
     canvas.drawPath(
       Path()
         ..moveTo(size.width - cornerLength, 0)
@@ -436,7 +459,7 @@ class _GuideFramePainter extends CustomPainter {
       paint,
     );
 
-    // Bottom-left corner
+    // Bottom-left
     canvas.drawPath(
       Path()
         ..moveTo(0, size.height - cornerLength)
@@ -446,7 +469,7 @@ class _GuideFramePainter extends CustomPainter {
       paint,
     );
 
-    // Bottom-right corner
+    // Bottom-right
     canvas.drawPath(
       Path()
         ..moveTo(size.width - cornerLength, size.height)

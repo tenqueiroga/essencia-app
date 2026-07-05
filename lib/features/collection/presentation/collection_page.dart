@@ -269,12 +269,6 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
               ),
               const Spacer(),
               _WishlistButton(onTap: () => context.push('/wishlist')),
-              const SizedBox(width: 4),
-              IconButton(
-                icon: const Icon(Icons.refresh,
-                    color: OlfatoTokens.gray, size: 20),
-                onPressed: () => ref.invalidate(collectionProvider),
-              ),
             ],
           ),
         ),
@@ -793,24 +787,10 @@ class _WishlistButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.all(8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.favorite_border_rounded,
-                  color: OlfatoTokens.pitanga,
-                  size: 18,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Wishlist',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: OlfatoTokens.pitanga,
-                  ),
-                ),
-              ],
+            child: Icon(
+              Icons.favorite_border_rounded,
+              color: OlfatoTokens.pitanga,
+              size: 20,
             ),
           ),
         ),
