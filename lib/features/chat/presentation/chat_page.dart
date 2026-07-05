@@ -142,6 +142,7 @@ class _ChatPageState extends State<ChatPage> {
       ),
       child: Row(
         children: [
+          // Aura avatar — digital/fingerprint logo
           Container(
             width: 36,
             height: 36,
@@ -149,7 +150,14 @@ class _ChatPageState extends State<ChatPage> {
               shape: BoxShape.circle,
               gradient: OlfatoTokens.auraGradient,
             ),
-            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Image.asset(
+                'assets/images/olfato_simbolo.png',
+                color: Colors.white,
+                colorBlendMode: BlendMode.srcIn,
+              ),
+            ),
           ),
           const SizedBox(width: 10),
           Text(
@@ -275,7 +283,12 @@ class _ChatPageState extends State<ChatPage> {
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
+                Image.asset(
+                  'assets/images/olfato_simbolo.png',
+                  width: 16, height: 16,
+                  color: Colors.white,
+                  colorBlendMode: BlendMode.srcIn,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Sugestão do dia',
