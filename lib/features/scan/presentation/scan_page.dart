@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:async';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
@@ -23,17 +22,21 @@ class _ScanPageState extends State<ScanPage> {
   bool _isCameraReady = false;
   bool _isCameraError = false;
   bool _isIdentifying = false;
+  bool _showCapturedFrame = false;
   String? _error;
   String? _cameraErrorMessage;
   Map<String, dynamic>? _foundPerfume;
+  String? _capturedImageData; // data URL for showing captured frame
 
   html.VideoElement? _videoElement;
   html.MediaStream? _mediaStream;
-  final String _viewId = 'scan-camera-${DateTime.now().millisecondsSinceEpoch}';
+  late final String _viewId;
+  bool _viewRegistered = false;
 
   @override
   void initState() {
     super.initState();
+    _viewId = 'scan-camera-${DateTime.now().millisecondsSinceEpoch}';
     _initWebCamera();
   }
 
@@ -58,19 +61,26 @@ class _ScanPageState extends State<ScanPage> {
       _cameraErrorMessage = null;
     });
 
-    _stopCamera();
-
     try {
-      final stream = await html.window.navigator.mediaDevices!.getUserMedia({
+      final constraints = {
         'video': {'facingMode': 'environment', 'width': {'ideal': 1280}, 'height': {'ideal': 720}},
         'audio': false,
-      });
+      };
+
+      html.MediaStream stream;
+      try {
+        stream = await html.window.navigator.mediaDevices!.getUserMedia(constraints);
+      } catch (_) {
+        // Fallback without facingMode
+        stream = await html.window.navigator.mediaDevices!.getUserMedia({'video': true, 'audio': false});
+      }
 
       _mediaStream = stream;
 
       final video = html.VideoElement()
         ..srcObject = stream
         ..autoplay = true
+        ..muted = true
         ..setAttribute('playsinline', 'true')
         ..style.width = '100%'
         ..style.height = '100%'
@@ -78,101 +88,75 @@ class _ScanPageState extends State<ScanPage> {
 
       _videoElement = video;
 
-      // Register the view
-      ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) => video);
+      if (!_viewRegistered) {
+        ui_web.platformViewRegistry.registerViewFactory(_viewId, (int id) => _videoElement!);
+        _viewRegistered = true;
+      }
 
-      // Wait for video to be ready
       await video.play();
 
-      if (mounted) {
-        setState(() => _isCameraReady = true);
-      }
+      if (mounted) setState(() => _isCameraReady = true);
     } catch (e) {
       if (mounted) {
         String msg = 'Erro ao acessar câmera.';
         final err = e.toString();
-        if (err.contains('NotAllowedError') || err.contains('Permission')) {
-          msg = 'Permissão negada. Clique no ícone de cadeado na barra de endereços e permita o acesso à câmera.';
+        if (err.contains('NotAllowedError') || err.contains('Permission') || err.contains('Denied')) {
+          msg = 'Permissão negada. Habilite a câmera nas configurações do navegador.';
         } else if (err.contains('NotFoundError')) {
-          msg = 'Nenhuma câmera encontrada neste dispositivo.';
+          msg = 'Nenhuma câmera encontrada.';
         } else if (err.contains('NotReadableError') || err.contains('AbortError')) {
-          msg = 'Câmera em uso por outro app. Feche-o e tente novamente.';
-        } else if (err.contains('OverconstrainedError')) {
-          // Try again without facingMode constraint
-          try {
-            final stream2 = await html.window.navigator.mediaDevices!.getUserMedia({
-              'video': true,
-              'audio': false,
-            });
-            _mediaStream = stream2;
-            final video2 = html.VideoElement()
-              ..srcObject = stream2
-              ..autoplay = true
-              ..setAttribute('playsinline', 'true')
-              ..style.width = '100%'
-              ..style.height = '100%'
-              ..style.objectFit = 'cover';
-            _videoElement = video2;
-            ui_web.platformViewRegistry.registerViewFactory('$_viewId-fallback', (int viewId) => video2);
-            await video2.play();
-            if (mounted) setState(() => _isCameraReady = true);
-            return;
-          } catch (_) {
-            msg = 'Câmera não suportada neste navegador.';
-          }
+          msg = 'Câmera em uso por outro aplicativo.';
         }
-        setState(() {
-          _isCameraError = true;
-          _cameraErrorMessage = msg;
-        });
+        setState(() { _isCameraError = true; _cameraErrorMessage = msg; });
       }
     }
   }
 
   Future<void> _capturePhoto() async {
     if (_videoElement == null || !_isCameraReady) return;
+    if (_isIdentifying) return;
 
-    setState(() { _error = null; _foundPerfume = null; });
+    setState(() { _error = null; });
 
     try {
-      // Draw video frame to canvas
-      final canvas = html.CanvasElement(width: _videoElement!.videoWidth, height: _videoElement!.videoHeight);
-      final ctx = canvas.context2D;
-      ctx.drawImage(_videoElement!, 0, 0);
+      final vw = _videoElement!.videoWidth;
+      final vh = _videoElement!.videoHeight;
+      final canvas = html.CanvasElement(width: vw, height: vh);
+      canvas.context2D.drawImage(_videoElement!, 0, 0);
 
-      // Convert to blob then to base64
-      final blob = await canvas.toBlob('image/jpeg', 0.85);
-      final reader = html.FileReader();
-      final completer = Completer<String>();
-      reader.onLoadEnd.listen((_) {
-        final result = reader.result as String;
-        // Remove data:image/jpeg;base64, prefix
-        final base64 = result.split(',').last;
-        completer.complete(base64);
+      // Get data URL for preview
+      final dataUrl = canvas.toDataUrl('image/jpeg', 0.85);
+
+      setState(() {
+        _showCapturedFrame = true;
+        _capturedImageData = dataUrl;
+        _foundPerfume = null;
       });
-      reader.readAsDataUrl(blob);
-      final base64Image = await completer.future;
 
-      await _identifyFromBase64(base64Image);
-    } catch (e) {
-      if (mounted) setState(() => _error = 'Erro ao capturar foto.');
-    }
-  }
+      // Get base64 for API
+      final base64Image = dataUrl.split(',').last;
 
-  Future<void> _identifyFromBase64(String base64Image) async {
-    setState(() { _isIdentifying = true; _error = null; _foundPerfume = null; });
+      // Send to API
+      setState(() => _isIdentifying = true);
 
-    try {
       final response = await ApiClient().dio.post('/perfumes/identify', data: {'image': base64Image});
       final data = response.data as Map<String, dynamic>;
 
       if (data['identified'] == true && data['perfume'] != null) {
         if (mounted) setState(() { _foundPerfume = data['perfume'] as Map<String, dynamic>; _isIdentifying = false; });
       } else {
-        if (mounted) setState(() { _error = data['message'] as String? ?? 'Perfume não identificado. Tente com melhor iluminação.'; _isIdentifying = false; });
+        if (mounted) setState(() {
+          _error = data['message'] as String? ?? 'Perfume não identificado. Tente outra foto.';
+          _isIdentifying = false;
+          _showCapturedFrame = false;
+        });
       }
     } catch (e) {
-      if (mounted) setState(() { _error = 'Erro de conexão. Tente novamente.'; _isIdentifying = false; });
+      if (mounted) setState(() {
+        _error = 'Erro ao processar. Tente novamente.';
+        _isIdentifying = false;
+        _showCapturedFrame = false;
+      });
     }
   }
 
@@ -185,137 +169,98 @@ class _ScanPageState extends State<ScanPage> {
       await ApiClient().dio.post('/collection', data: { 'perfume_id': _foundPerfume!['id'], 'type': selectedType.apiValue });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_foundPerfume!['name']} adicionado!'), backgroundColor: OlfatoTokens.plum));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfume já está na coleção'), backgroundColor: OlfatoTokens.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao adicionar'), backgroundColor: OlfatoTokens.error));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
+      backgroundColor: OlfatoTokens.vanilla,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: OlfatoTokens.ink), onPressed: () => context.pop()),
+        title: Text('Identificar Perfume', style: GoogleFonts.ebGaramond(fontSize: 20, fontWeight: FontWeight.w700, color: OlfatoTokens.ink)),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          // Camera area (fixed height)
+          _buildCameraSection(),
+          // Bottom scrollable area: capture button + result
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
                 children: [
-                  IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => context.pop()),
-                  const Spacer(),
-                  Text('Identificar Perfume', style: GoogleFonts.ebGaramond(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-                  const Spacer(),
-                  const SizedBox(width: 48),
+                  // Capture button — always visible
+                  _buildCaptureButton(),
+                  const SizedBox(height: 16),
+                  // Error
+                  if (_error != null) _buildError(),
+                  // Result card
+                  if (_foundPerfume != null) _buildResultCard(),
                 ],
               ),
             ),
-
-            // Camera view
-            Expanded(child: _buildCameraView()),
-
-            // Bottom controls
-            _buildBottomControls(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCameraView() {
-    if (_isCameraError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.videocam_off, size: 48, color: Colors.white.withValues(alpha: 0.4)),
-              const SizedBox(height: 12),
-              Text(_cameraErrorMessage ?? 'Câmera indisponível', textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 14, color: Colors.white70)),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: _initWebCamera,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Tentar novamente'),
-                style: ElevatedButton.styleFrom(backgroundColor: OlfatoTokens.plum, foregroundColor: Colors.white),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (!_isCameraReady) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
-            SizedBox(height: 12),
-            Text('Abrindo câmera...', style: TextStyle(color: Colors.white54, fontSize: 13)),
-          ],
-        ),
-      );
-    }
-
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // HTML video element
-        SizedBox.expand(
-          child: HtmlElementView(viewType: _viewId),
-        ),
-        // Guide frame
-        CustomPaint(
-          size: const Size(200, 260),
-          painter: _GuideFramePainter(),
-        ),
-        // Hint
-        Positioned(
-          bottom: 16,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(16)),
-            child: Text('Centralize o frasco', style: GoogleFonts.inter(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomControls() {
+  Widget _buildCameraSection() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-      color: Colors.black,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      height: MediaQuery.of(context).size.height * 0.45,
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
         children: [
+          // Show captured frame or live camera
+          if (_showCapturedFrame && _capturedImageData != null)
+            Image.network(_capturedImageData!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+          else if (_isCameraReady)
+            SizedBox.expand(child: HtmlElementView(viewType: _viewId))
+          else if (_isCameraError)
+            _buildCameraError()
+          else
+            const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
+
+          // Guide frame overlay (always visible)
+          if (!_showCapturedFrame)
+            CustomPaint(size: const Size(180, 230), painter: _GuideFramePainter()),
+
+          // Identifying overlay
           if (_isIdentifying)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
-                  const SizedBox(width: 10),
-                  Text('Identificando...', style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
-                ],
+            Container(
+              color: Colors.black45,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                    const SizedBox(height: 12),
+                    Text('Identificando...', style: GoogleFonts.inter(fontSize: 14, color: Colors.white, fontWeight: FontWeight.w500)),
+                  ],
+                ),
               ),
             ),
-          if (_error != null && !_isIdentifying)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(_error!, style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.pitanga), textAlign: TextAlign.center),
-            ),
-          if (_foundPerfume != null && !_isIdentifying) _buildCompactResult(),
 
-          if (!_isIdentifying && _foundPerfume == null)
-            GestureDetector(
-              onTap: _isCameraReady ? _capturePhoto : null,
+          // Bottom hint
+          if (!_showCapturedFrame && _isCameraReady && !_isIdentifying)
+            Positioned(
+              bottom: 12,
               child: Container(
-                width: 72, height: 72,
-                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 4)),
-                child: Container(margin: const EdgeInsets.all(4), decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white)),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
+                child: Text('Centralize o frasco', style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w500)),
               ),
             ),
         ],
@@ -323,31 +268,114 @@ class _ScanPageState extends State<ScanPage> {
     );
   }
 
-  Widget _buildCompactResult() {
+  Widget _buildCameraError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam_off, size: 36, color: Colors.white.withValues(alpha: 0.4)),
+            const SizedBox(height: 8),
+            Text(_cameraErrorMessage ?? 'Câmera indisponível', textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _initWebCamera, child: Text('Tentar novamente', style: GoogleFonts.inter(color: Colors.white, fontSize: 12))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCaptureButton() {
+    final isReady = _isCameraReady && !_isIdentifying;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: isReady ? _capturePhoto : null,
+        icon: Icon(_isIdentifying ? Icons.hourglass_top : Icons.camera_alt, size: 20),
+        label: Text(
+          _isIdentifying ? 'Processando...' : 'Capturar Foto',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: OlfatoTokens.plum,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: OlfatoTokens.plum.withValues(alpha: 0.4),
+          disabledForegroundColor: Colors.white70,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: OlfatoTokens.error.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+        border: Border.all(color: OlfatoTokens.error.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: OlfatoTokens.error, size: 18),
+          const SizedBox(width: 8),
+          Expanded(child: Text(_error!, style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.error))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResultCard() {
     final name = _foundPerfume!['name'] as String? ?? '';
     final brand = _foundPerfume!['brand'] as String? ?? '';
     final perfumeId = _foundPerfume!['id']?.toString() ?? '';
 
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: OlfatoTokens.green.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: OlfatoTokens.green.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+        border: Border.all(color: OlfatoTokens.green.withValues(alpha: 0.25)),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.check_circle, color: OlfatoTokens.green, size: 16),
-            const SizedBox(width: 8),
-            Expanded(child: Text('$name — $brand', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white))),
-          ]),
+          Row(
+            children: [
+              const Icon(Icons.check_circle, color: OlfatoTokens.green, size: 18),
+              const SizedBox(width: 8),
+              Text('Perfume Identificado!', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: OlfatoTokens.green)),
+            ],
+          ),
           const SizedBox(height: 10),
-          Row(children: [
-            Expanded(child: ElevatedButton(onPressed: () { if (perfumeId.isNotEmpty) context.push('/perfume/$perfumeId'); }, style: ElevatedButton.styleFrom(backgroundColor: OlfatoTokens.plum, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: Text('Ver ficha', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12)))),
-            const SizedBox(width: 8),
-            Expanded(child: OutlinedButton(onPressed: _addToCollection, style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: Text('Adicionar', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12)))),
-            const SizedBox(width: 8),
-            IconButton(onPressed: () => setState(() { _foundPerfume = null; _error = null; }), icon: const Icon(Icons.refresh, color: Colors.white70, size: 20), tooltip: 'Nova foto'),
-          ]),
+          Text(name, style: GoogleFonts.ebGaramond(fontSize: 18, fontWeight: FontWeight.w700, color: OlfatoTokens.ink)),
+          Text(brand, style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray)),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () { if (perfumeId.isNotEmpty) context.push('/perfume/$perfumeId'); },
+                  style: ElevatedButton.styleFrom(backgroundColor: OlfatoTokens.plum, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl))),
+                  child: Text('Ver ficha', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _addToCollection,
+                  style: OutlinedButton.styleFrom(foregroundColor: OlfatoTokens.plum, side: const BorderSide(color: OlfatoTokens.plum), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl))),
+                  child: Text('Adicionar', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -358,8 +386,7 @@ class _GuideFramePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.white.withValues(alpha: 0.8)..strokeWidth = 3..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
-    const cl = 35.0;
-    const r = 14.0;
+    const cl = 30.0; const r = 12.0;
     canvas.drawPath(Path()..moveTo(0, cl)..lineTo(0, r)..arcToPoint(Offset(r, 0), radius: const Radius.circular(r))..lineTo(cl, 0), paint);
     canvas.drawPath(Path()..moveTo(size.width - cl, 0)..lineTo(size.width - r, 0)..arcToPoint(Offset(size.width, r), radius: const Radius.circular(r))..lineTo(size.width, cl), paint);
     canvas.drawPath(Path()..moveTo(0, size.height - cl)..lineTo(0, size.height - r)..arcToPoint(Offset(r, size.height), radius: const Radius.circular(r))..lineTo(cl, size.height), paint);
