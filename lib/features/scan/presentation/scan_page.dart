@@ -152,7 +152,7 @@ class _ScanPageState extends State<ScanPage> {
       final data = response.data as Map<String, dynamic>;
 
       if (data['identified'] == true && data['perfume'] != null) {
-        if (mounted) setState(() { _foundPerfume = data['perfume'] as Map<String, dynamic>; _isIdentifying = false; });
+        if (mounted) setState(() { _foundPerfume = data['perfume'] as Map<String, dynamic>; _isIdentifying = false; _showCapturedFrame = false; });
       } else {
         if (mounted) setState(() {
           _error = data['message'] as String? ?? 'Perfume não identificado. Tente outra foto com melhor iluminação.';
@@ -304,6 +304,32 @@ class _ScanPageState extends State<ScanPage> {
 
   Widget _buildCaptureButton() {
     final isReady = _isCameraReady && !_isIdentifying;
+    final hasResult = _foundPerfume != null;
+
+    // If has result, show "Escanear outro" that just resets
+    if (hasResult) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () {
+            setState(() {
+              _foundPerfume = null;
+              _error = null;
+              _showCapturedFrame = false;
+              _capturedImageData = null;
+            });
+          },
+          icon: const Icon(Icons.refresh, size: 20),
+          label: Text('Escanear outro', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: OlfatoTokens.plum,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl)),
+          ),
+        ),
+      );
+    }
 
     return SizedBox(
       width: double.infinity,
@@ -311,7 +337,7 @@ class _ScanPageState extends State<ScanPage> {
         onPressed: isReady ? _capturePhoto : null,
         icon: Icon(_isIdentifying ? Icons.hourglass_top : Icons.camera_alt, size: 20),
         label: Text(
-          _isIdentifying ? 'Processando...' : (_foundPerfume != null ? 'Escanear outro' : 'Capturar Foto'),
+          _isIdentifying ? 'Processando...' : 'Capturar Foto',
           style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
         ),
         style: ElevatedButton.styleFrom(
