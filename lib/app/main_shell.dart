@@ -121,11 +121,18 @@ class _RegularTab extends StatelessWidget {
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                (isActive ? tab['activeIcon'] : tab['icon']) as IconData,
-                color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
-                size: 20,
-              ),
+              child: (tab['path'] == '/chat')
+                  ? Image.asset(
+                      'assets/images/olfato_simbolo.png',
+                      width: 20, height: 20,
+                      color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
+                      colorBlendMode: BlendMode.srcIn,
+                    )
+                  : Icon(
+                      (isActive ? tab['activeIcon'] : tab['icon']) as IconData,
+                      color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
+                      size: 20,
+                    ),
             ),
             const SizedBox(height: 2),
             Text(
