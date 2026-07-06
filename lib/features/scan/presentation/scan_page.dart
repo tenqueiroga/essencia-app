@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'package:dio/dio.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 // ignore: avoid_web_libraries_in_flutter
@@ -116,7 +117,12 @@ class _ScanPageState extends State<ScanPage> {
     if (_videoElement == null || !_isCameraReady) return;
     if (_isIdentifying) return;
 
-    setState(() { _error = null; });
+    // Reset state for new capture
+    setState(() {
+      _error = null;
+      _foundPerfume = null;
+      _showCapturedFrame = false;
+    });
 
     try {
       final vw = _videoElement!.videoWidth;
@@ -130,30 +136,32 @@ class _ScanPageState extends State<ScanPage> {
       setState(() {
         _showCapturedFrame = true;
         _capturedImageData = dataUrl;
-        _foundPerfume = null;
+        _isIdentifying = true;
       });
 
       // Get base64 for API
       final base64Image = dataUrl.split(',').last;
 
-      // Send to API
-      setState(() => _isIdentifying = true);
-
-      final response = await ApiClient().dio.post('/perfumes/identify', data: {'image': base64Image});
+      // Send to API — handle non-2xx as data, not exception
+      final response = await ApiClient().dio.post(
+        '/perfumes/identify',
+        data: {'image': base64Image},
+        options: Options(validateStatus: (status) => status != null && status < 500),
+      );
       final data = response.data as Map<String, dynamic>;
 
       if (data['identified'] == true && data['perfume'] != null) {
         if (mounted) setState(() { _foundPerfume = data['perfume'] as Map<String, dynamic>; _isIdentifying = false; });
       } else {
         if (mounted) setState(() {
-          _error = data['message'] as String? ?? 'Perfume não identificado. Tente outra foto.';
+          _error = data['message'] as String? ?? 'Perfume não identificado. Tente outra foto com melhor iluminação.';
           _isIdentifying = false;
           _showCapturedFrame = false;
         });
       }
     } catch (e) {
       if (mounted) setState(() {
-        _error = 'Erro ao processar. Tente novamente.';
+        _error = 'Erro ao processar. Verifique sua conexão.';
         _isIdentifying = false;
         _showCapturedFrame = false;
       });
@@ -295,7 +303,7 @@ class _ScanPageState extends State<ScanPage> {
         onPressed: isReady ? _capturePhoto : null,
         icon: Icon(_isIdentifying ? Icons.hourglass_top : Icons.camera_alt, size: 20),
         label: Text(
-          _isIdentifying ? 'Processando...' : 'Capturar Foto',
+          _isIdentifying ? 'Processando...' : (_foundPerfume != null ? 'Escanear outro' : 'Capturar Foto'),
           style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
         ),
         style: ElevatedButton.styleFrom(
