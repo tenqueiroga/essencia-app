@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 
@@ -268,6 +269,12 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
                 ),
               ),
               const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.share_outlined, color: OlfatoTokens.gray, size: 20),
+                onPressed: () {
+                  Share.share('🧴 Confira minha coleção de perfumes no Olfato!\nhttps://essencia.laravel.cloud/app/collection');
+                },
+              ),
               _WishlistButton(onTap: () => context.push('/wishlist')),
             ],
           ),

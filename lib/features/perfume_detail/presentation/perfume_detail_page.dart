@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
@@ -178,6 +179,16 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
                   content: Text('Erro ao atualizar wishlist'),
                   backgroundColor: OlfatoTokens.error,
                 ));
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined, color: OlfatoTokens.gray, size: 22),
+            onPressed: () {
+              if (_perfume != null) {
+                final name = _perfume!['name'] as String? ?? '';
+                final brand = _perfume!['brand'] as String? ?? '';
+                Share.share('🧴 $name — $brand\n\nConfira no Olfato: https://essencia.laravel.cloud/app/perfume/${widget.perfumeId}');
               }
             },
           ),

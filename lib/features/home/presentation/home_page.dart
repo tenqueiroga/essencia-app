@@ -128,6 +128,23 @@ class _GreetingHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+          // SOTD quick access
+          GestureDetector(
+            onTap: () => context.go('/journal'),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: OlfatoTokens.amber.withValues(alpha: 0.12),
+                border: Border.all(color: OlfatoTokens.amber.withValues(alpha: 0.3)),
+              ),
+              child: const Center(
+                child: Icon(Icons.edit_calendar, color: OlfatoTokens.amber, size: 18),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
           GestureDetector(
             onTap: () => context.go('/profile'),
             child: Container(
