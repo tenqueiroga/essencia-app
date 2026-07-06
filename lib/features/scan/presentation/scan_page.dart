@@ -58,8 +58,15 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
     setState(() {
       _isInitializing = true;
       _isCameraError = false;
+      _isCameraInitialized = false;
       _cameraErrorMessage = null;
     });
+
+    // Dispose previous if any
+    if (_cameraController != null) {
+      try { await _cameraController!.dispose(); } catch (_) {}
+      _cameraController = null;
+    }
 
     try {
       _cameras = await availableCameras();
@@ -83,9 +90,8 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
 
       final controller = CameraController(
         camera,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
       _cameraController = controller;
@@ -101,10 +107,15 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
     } catch (e) {
       if (mounted) {
         String msg = 'Erro ao acessar a câmera.';
-        if (e.toString().contains('Permission') || e.toString().contains('NotAllowed')) {
-          msg = 'Permissão de câmera negada. Habilite nas configurações do navegador.';
-        } else if (e.toString().contains('NotFound') || e.toString().contains('Overconstrained')) {
-          msg = 'Câmera não encontrada ou não suportada.';
+        final err = e.toString();
+        if (err.contains('Permission') || err.contains('NotAllowed') || err.contains('Denied')) {
+          msg = 'Permissão de câmera negada. Habilite nas configurações do navegador e recarregue a página.';
+        } else if (err.contains('NotFound') || err.contains('Overconstrained')) {
+          msg = 'Câmera não encontrada ou não suportada neste navegador.';
+        } else if (err.contains('NotReadable') || err.contains('AbortError')) {
+          msg = 'Câmera está em uso por outro aplicativo. Feche e tente novamente.';
+        } else {
+          msg = 'Erro: $err';
         }
         setState(() {
           _isCameraError = true;
