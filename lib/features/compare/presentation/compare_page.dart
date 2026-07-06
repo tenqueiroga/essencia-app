@@ -13,35 +13,53 @@ class _ComparisonPerfume {
   final String name;
   final String brand;
   final String? imageUrl;
-  final String? cheiro;
-  final String? fixacao; // categorical: curta, média, longa
-  final String? projecao; // categorical: íntima, moderada, forte
+  final String? familia;
+  final String? genero;
+  final String? notas;
+  final String? fixacao;
+  final String? projecao;
   final String? preco;
+  final String? cusBeneficio;
+  final String? ano;
+  final String? perfumista;
+  final double? rating;
+  final int? ratingCount;
 
   const _ComparisonPerfume({
     required this.id,
     required this.name,
     required this.brand,
     this.imageUrl,
-    this.cheiro,
+    this.familia,
+    this.genero,
+    this.notas,
     this.fixacao,
     this.projecao,
     this.preco,
+    this.cusBeneficio,
+    this.ano,
+    this.perfumista,
+    this.rating,
+    this.ratingCount,
   });
 
   factory _ComparisonPerfume.fromJson(Map<String, dynamic> json) {
-    // Derive fixação category from longevity data
+    // Fixação
     String? fixacao;
     final longevityData = json['longevity_data'] as List?;
     if (longevityData != null && longevityData.isNotEmpty) {
       fixacao = _deriveLongevityCategory(longevityData);
+    } else {
+      fixacao = json['longevity'] as String?;
     }
 
-    // Derive projeção category from sillage data
+    // Projeção
     String? projecao;
     final sillageData = json['sillage_data'] as List?;
     if (sillageData != null && sillageData.isNotEmpty) {
       projecao = _deriveSillageCategory(sillageData);
+    } else {
+      projecao = json['projection'] as String?;
     }
 
     // Price
@@ -54,21 +72,53 @@ class _ComparisonPerfume {
       }
     }
 
+    // Custo-benefício
+    String? cusBeneficio;
+    final pv = json['price_value_avg'];
+    if (pv != null) {
+      final val = double.tryParse(pv.toString());
+      if (val != null && val > 0) {
+        cusBeneficio = '${val.toStringAsFixed(1)}/5';
+      }
+    }
+
+    // Notas de topo como "cheiro" resumido
+    String? notas;
+    final topNotes = json['top_notes'] as List?;
+    if (topNotes != null && topNotes.isNotEmpty) {
+      final noteNames = topNotes.take(4).map((n) => n is String ? n : (n as Map)['name'] ?? '').toList();
+      notas = noteNames.join(', ');
+    }
+
+    // Família
+    final familia = json['olfactory_family']?['name'] as String? ??
+        (json['olfactory_family'] is String ? json['olfactory_family'] as String : null);
+
+    // Rating
+    double? rating;
+    final r = json['rating'];
+    if (r != null) rating = double.tryParse(r.toString());
+
     return _ComparisonPerfume(
       id: (json['id'] ?? '').toString(),
       name: json['name'] as String? ?? '',
       brand: json['brand'] as String? ?? '',
       imageUrl: json['image_url'] as String?,
-      cheiro: json['description'] as String?,
+      familia: familia,
+      genero: json['gender'] as String?,
+      notas: notas,
       fixacao: fixacao,
       projecao: projecao,
       preco: preco,
+      cusBeneficio: cusBeneficio,
+      ano: json['year_launched']?.toString(),
+      perfumista: json['perfumer'] as String?,
+      rating: rating,
+      ratingCount: json['rating_count'] as int?,
     );
   }
 
-  /// Maps longevity vote data to categorical labels.
   static String _deriveLongevityCategory(List<dynamic> data) {
-    // Find the dominant category
     String bestName = '';
     num bestPct = 0;
     for (final item in data) {
@@ -78,18 +128,12 @@ class _ComparisonPerfume {
         bestName = (item['name'] as String?) ?? '';
       }
     }
-    // Map to our three categories
     final lower = bestName.toLowerCase();
-    if (lower.contains('fraca') || lower.contains('poor') || lower.contains('curta')) {
-      return 'curta';
-    } else if (lower.contains('moderada') || lower.contains('moderate') || lower.contains('média')) {
-      return 'média';
-    } else {
-      return 'longa';
-    }
+    if (lower.contains('fraca') || lower.contains('curta')) return 'curta';
+    if (lower.contains('moderada')) return 'média';
+    return 'longa';
   }
 
-  /// Maps sillage vote data to categorical labels.
   static String _deriveSillageCategory(List<dynamic> data) {
     String bestName = '';
     num bestPct = 0;
@@ -101,13 +145,9 @@ class _ComparisonPerfume {
       }
     }
     final lower = bestName.toLowerCase();
-    if (lower.contains('intimate') || lower.contains('íntima') || lower.contains('soft')) {
-      return 'íntima';
-    } else if (lower.contains('moderate') || lower.contains('moderada')) {
-      return 'moderada';
-    } else {
-      return 'forte';
-    }
+    if (lower.contains('íntima') || lower.contains('intimate')) return 'íntima';
+    if (lower.contains('moderada') || lower.contains('moderate')) return 'moderada';
+    return 'forte';
   }
 }
 
@@ -169,35 +209,42 @@ class _ComparePageState extends State<ComparePage> {
       final left = _ComparisonPerfume.fromJson(leftData);
       final right = _ComparisonPerfume.fromJson(rightData);
 
-      // Fetch AI-generated difference (non-blocking — don't fail page if this errors)
-      String? diferenca;
-      try {
-        final compareResponse = await ApiClient()
-            .dio
-            .post('/chat/compare', data: {
-              'perfume1_id': widget.perfume1Id,
-              'perfume2_id': widget.perfume2Id,
-            })
-            .timeout(const Duration(seconds: 10));
-        diferenca = compareResponse.data['difference'] as String?;
-      } catch (_) {
-        // AI comparison is optional — show "Indisponível" if it fails
-      }
-
       if (mounted) {
         setState(() {
           _left = left;
           _right = right;
-          _diferencaPrincipal = diferenca;
           _loading = false;
         });
       }
+
+      // Fetch AI-generated difference in background (non-blocking)
+      _loadAiDifference();
     } catch (_) {
       if (mounted) {
         setState(() {
           _loading = false;
           _hasError = true;
         });
+      }
+    }
+  }
+
+  Future<void> _loadAiDifference() async {
+    if (_left == null || _right == null) return;
+    try {
+      final message = 'Compare brevemente (máximo 2 frases) a diferença principal entre ${_left!.name} (${_left!.brand}) e ${_right!.name} (${_right!.brand}). Foque no que mais diferencia um do outro em termos de experiência olfativa.';
+      final response = await ApiClient()
+          .dio
+          .post('/chat/message', data: {'message': message})
+          .timeout(const Duration(seconds: 15));
+      final data = response.data as Map<String, dynamic>;
+      final reply = data['reply'] as String? ?? data['message'] as String? ?? data['response'] as String?;
+      if (mounted && reply != null && reply.isNotEmpty) {
+        setState(() => _diferencaPrincipal = reply);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _diferencaPrincipal = 'Não foi possível gerar a comparação com IA.');
       }
     }
   }
@@ -271,10 +318,17 @@ class _ComparePageState extends State<ComparePage> {
 
           // Comparison fields
           _ComparisonField(
-            label: 'Cheiro',
+            label: 'Notas de Topo',
             icon: Icons.air,
-            leftWidget: _buildTextValue(_left!.cheiro),
-            rightWidget: _buildTextValue(_right!.cheiro),
+            leftWidget: _buildTextValue(_left!.notas),
+            rightWidget: _buildTextValue(_right!.notas),
+          ),
+          const SizedBox(height: 16),
+          _ComparisonField(
+            label: 'Família Olfativa',
+            icon: Icons.spa_outlined,
+            leftWidget: _buildTextValue(_left!.familia),
+            rightWidget: _buildTextValue(_right!.familia),
           ),
           const SizedBox(height: 16),
           _ComparisonField(
@@ -304,6 +358,13 @@ class _ComparePageState extends State<ComparePage> {
           ),
           const SizedBox(height: 16),
           _ComparisonField(
+            label: 'Avaliação',
+            icon: Icons.star_rounded,
+            leftWidget: _buildRating(_left!.rating, _left!.ratingCount),
+            rightWidget: _buildRating(_right!.rating, _right!.ratingCount),
+          ),
+          const SizedBox(height: 16),
+          _ComparisonField(
             label: 'Preço',
             icon: Icons.attach_money,
             leftWidget: _buildTextValue(_left!.preco),
@@ -311,10 +372,40 @@ class _ComparePageState extends State<ComparePage> {
           ),
           const SizedBox(height: 16),
           _ComparisonField(
+            label: 'Custo-Benefício',
+            icon: Icons.trending_up,
+            leftWidget: _buildTextValue(_left!.cusBeneficio),
+            rightWidget: _buildTextValue(_right!.cusBeneficio),
+          ),
+          const SizedBox(height: 16),
+          _ComparisonField(
+            label: 'Gênero',
+            icon: Icons.person_outline,
+            leftWidget: _buildTextValue(_left!.genero),
+            rightWidget: _buildTextValue(_right!.genero),
+          ),
+          const SizedBox(height: 16),
+          _ComparisonField(
+            label: 'Perfumista',
+            icon: Icons.brush_outlined,
+            leftWidget: _buildTextValue(_left!.perfumista),
+            rightWidget: _buildTextValue(_right!.perfumista),
+          ),
+          const SizedBox(height: 16),
+          _ComparisonField(
+            label: 'Ano',
+            icon: Icons.calendar_today_outlined,
+            leftWidget: _buildTextValue(_left!.ano),
+            rightWidget: _buildTextValue(_right!.ano),
+          ),
+          const SizedBox(height: 16),
+          _ComparisonField(
             label: 'Diferença principal',
             icon: Icons.compare_arrows,
-            leftWidget: _buildTextValue(_diferencaPrincipal),
-            rightWidget: null, // single field spanning both
+            leftWidget: _diferencaPrincipal != null
+                ? _buildTextValue(_diferencaPrincipal)
+                : _buildLoadingOrEmpty(),
+            rightWidget: null,
             isFull: true,
           ),
           const SizedBox(height: 32),
@@ -419,6 +510,34 @@ class _ComparePageState extends State<ComparePage> {
         color: isUnavailable ? OlfatoTokens.gray : OlfatoTokens.ink,
         fontStyle: isUnavailable ? FontStyle.italic : FontStyle.normal,
       ),
+    );
+  }
+
+  Widget _buildRating(double? rating, int? count) {
+    if (rating == null) return _buildTextValue(null);
+    return Row(
+      children: [
+        Icon(Icons.star_rounded, color: OlfatoTokens.amber, size: 14),
+        const SizedBox(width: 4),
+        Text(
+          rating.toStringAsFixed(1),
+          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: OlfatoTokens.ink),
+        ),
+        if (count != null) ...[
+          const SizedBox(width: 4),
+          Text('($count)', style: GoogleFonts.inter(fontSize: 10, color: OlfatoTokens.gray)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildLoadingOrEmpty() {
+    return Row(
+      children: [
+        SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: OlfatoTokens.plum, strokeWidth: 1.5)),
+        const SizedBox(width: 8),
+        Text('Analisando com IA...', style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray, fontStyle: FontStyle.italic)),
+      ],
     );
   }
 

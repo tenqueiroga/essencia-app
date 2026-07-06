@@ -50,9 +50,9 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
 
   Future<void> _initCamera() async {
     try {
-      final cameras = await availableCameras();
+      final cameras = await availableCameras().timeout(const Duration(seconds: 5));
       if (cameras.isEmpty) {
-        setState(() => _isCameraError = true);
+        if (mounted) setState(() => _isCameraError = true);
         return;
       }
 
@@ -68,7 +68,7 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
         enableAudio: false,
       );
 
-      await _cameraController!.initialize();
+      await _cameraController!.initialize().timeout(const Duration(seconds: 8));
       if (mounted) {
         setState(() => _isCameraInitialized = true);
       }
