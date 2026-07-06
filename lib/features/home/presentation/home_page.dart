@@ -227,7 +227,38 @@ class _WeatherCardState extends State<_WeatherCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const SizedBox.shrink();
+    if (_loading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          height: 100,
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: OlfatoTokens.mist,
+            borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+            border: Border.all(color: OlfatoTokens.borderLight),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(height: 14, width: 80, decoration: BoxDecoration(color: OlfatoTokens.borderLight, borderRadius: BorderRadius.circular(4))),
+                    const SizedBox(height: 8),
+                    Container(height: 10, width: 120, decoration: BoxDecoration(color: OlfatoTokens.borderLight, borderRadius: BorderRadius.circular(4))),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.plum)),
+            ],
+          ),
+        ),
+      );
+    }
 
     final temp = (_weather?['temperature'] as num?)?.toDouble();
     final city = _weather?['city'] as String?;
