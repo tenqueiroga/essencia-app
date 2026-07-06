@@ -472,34 +472,68 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             // Marca
             _filterSectionLabel('Marca', Icons.business_outlined),
             const SizedBox(height: 8),
-            TextField(
-              decoration: InputDecoration(
-                hintText: 'Ex: Dior, Tom Ford...',
-                hintStyle: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
-                isDense: true,
-                filled: true,
-                fillColor: OlfatoTokens.mist,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                  borderSide: BorderSide(color: OlfatoTokens.borderLight),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                  borderSide: BorderSide(color: OlfatoTokens.plum),
-                ),
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.search, size: 18, color: OlfatoTokens.plum),
-                  onPressed: _applyAdvancedSearch,
-                ),
-              ),
-              style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
-              onChanged: (v) => _brandFilter = v,
-              onSubmitted: (_) => _applyAdvancedSearch(),
+            Autocomplete<String>(
+              optionsBuilder: (TextEditingValue value) {
+                if (value.text.isEmpty) return const Iterable<String>.empty();
+                final brands = (_exploreData?['brands'] as Map?)?.keys.toList() ?? [];
+                return brands.where((b) => b.toString().toLowerCase().contains(value.text.toLowerCase())).map((b) => b.toString()).take(8);
+              },
+              onSelected: (String selection) {
+                setState(() => _brandFilter = selection);
+              },
+              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: InputDecoration(
+                    hintText: 'Ex: Dior, Tom Ford...',
+                    hintStyle: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
+                    isDense: true,
+                    filled: true,
+                    fillColor: OlfatoTokens.mist,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                      borderSide: BorderSide(color: OlfatoTokens.borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                      borderSide: BorderSide(color: OlfatoTokens.plum),
+                    ),
+                  ),
+                  style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
+                  onChanged: (v) => _brandFilter = v,
+                );
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(8),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200, maxWidth: 280),
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        itemCount: options.length,
+                        itemBuilder: (context, index) {
+                          final option = options.elementAt(index);
+                          return ListTile(
+                            dense: true,
+                            title: Text(option, style: GoogleFonts.inter(fontSize: 13)),
+                            onTap: () => onSelected(option),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 18),
 
