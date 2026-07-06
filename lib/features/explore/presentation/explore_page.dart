@@ -442,7 +442,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     setState(() {
                       _selectedFamily = isSelected ? null : familyName;
                     });
-                    _applyAdvancedSearch();
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
@@ -515,7 +514,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                         'Todos': 'Todos', 'Masc': 'Masculino', 'Fem': 'Feminino', 'Uni': 'Unissex',
                       }, (v) {
                         setState(() => _genderFilter = v);
-                        _applyAdvancedSearch();
                       }),
                     ],
                   ),
@@ -531,7 +529,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               'Todos': 'Todos', 'Dia': 'Melhor para Dia', 'Noite': 'Melhor para Noite',
             }, (v) {
               setState(() => _timeFilter = v);
-              _applyAdvancedSearch();
             }),
             const SizedBox(height: 18),
 
@@ -543,7 +540,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               '300-500': 'R\$300-500', '500+': 'Acima de R\$500',
             }, (v) {
               setState(() => _priceFilter = v);
-              _applyAdvancedSearch();
             }),
             const SizedBox(height: 14),
 
@@ -566,7 +562,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     activeColor: OlfatoTokens.pitanga,
                     onChanged: (v) {
                       setState(() => _onlyDupes = v);
-                      _applyAdvancedSearch();
                     },
                   ),
                 ],
@@ -578,7 +573,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _applyAdvancedSearch,
+                onPressed: () {
+                  setState(() => _showAdvancedSearch = false);
+                  _applyAdvancedSearch();
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: OlfatoTokens.plum,
                   foregroundColor: Colors.white,
@@ -694,18 +692,27 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
   Widget _filterChip(String label, VoidCallback onRemove) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: OlfatoTokens.plum.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: OlfatoTokens.plum, fontWeight: FontWeight.w500)),
-          const SizedBox(width: 4),
-          GestureDetector(onTap: onRemove, child: Icon(Icons.close, size: 14, color: OlfatoTokens.plum)),
+          Text(label, style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.plum, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: onRemove,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: OlfatoTokens.plum.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.close, size: 12, color: OlfatoTokens.plum),
+            ),
+          ),
         ],
       ),
     );

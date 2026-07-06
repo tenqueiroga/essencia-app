@@ -232,19 +232,21 @@ class _ComparePageState extends State<ComparePage> {
   Future<void> _loadAiDifference() async {
     if (_left == null || _right == null) return;
     try {
-      final message = 'Compare brevemente (máximo 2 frases) a diferença principal entre ${_left!.name} (${_left!.brand}) e ${_right!.name} (${_right!.brand}). Foque no que mais diferencia um do outro em termos de experiência olfativa.';
       final response = await ApiClient()
           .dio
-          .post('/chat/message', data: {'message': message})
-          .timeout(const Duration(seconds: 15));
+          .post('/chat/compare', data: {
+            'perfume1_id': _left!.id,
+            'perfume2_id': _right!.id,
+          })
+          .timeout(const Duration(seconds: 20));
       final data = response.data as Map<String, dynamic>;
-      final reply = data['reply'] as String? ?? data['message'] as String? ?? data['response'] as String?;
+      final reply = data['difference'] as String? ?? data['reply'] as String? ?? data['message'] as String?;
       if (mounted && reply != null && reply.isNotEmpty) {
         setState(() => _diferencaPrincipal = reply);
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _diferencaPrincipal = 'Não foi possível gerar a comparação com IA.');
+        setState(() => _diferencaPrincipal = 'Indisponível no momento.');
       }
     }
   }

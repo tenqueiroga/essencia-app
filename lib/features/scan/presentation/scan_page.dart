@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
@@ -231,17 +232,24 @@ class _ScanPageState extends State<ScanPage> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Show captured frame or live camera
-          if (_showCapturedFrame && _capturedImageData != null)
-            Image.network(_capturedImageData!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
-          else if (_isCameraReady)
+          // Always keep the live camera in the tree
+          if (_isCameraReady)
             SizedBox.expand(child: HtmlElementView(viewType: _viewId))
           else if (_isCameraError)
             _buildCameraError()
           else
             const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
 
-          // Guide frame overlay (always visible)
+          // Captured frame overlay — sits on top of live camera
+          if (_showCapturedFrame && _capturedImageData != null)
+            Positioned.fill(
+              child: Image.memory(
+                base64Decode(_capturedImageData!.split(',').last),
+                fit: BoxFit.cover,
+              ),
+            ),
+
+          // Guide frame overlay (only when live)
           if (!_showCapturedFrame)
             CustomPaint(size: const Size(180, 230), painter: _GuideFramePainter()),
 
