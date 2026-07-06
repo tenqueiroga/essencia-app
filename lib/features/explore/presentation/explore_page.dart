@@ -36,6 +36,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   bool _hasSearched = false;
   Map<String, dynamic>? _exploreData;
   bool _showAdvancedSearch = false;
+  bool _filtersApplied = false;
   String? _selectedFamily;
   String _brandFilter = '';
   String _genderFilter = 'Todos';
@@ -82,6 +83,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       _timeFilter = 'Todos';
       _priceFilter = 'Todos';
       _onlyDupes = false;
+      _filtersApplied = false;
       _searchResults = [];
       _hasSearched = false;
     });
@@ -338,8 +340,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                   child: SingleChildScrollView(child: _buildAdvancedFilters()),
                 ),
               ),
-            // Active filter chips
-            if (_hasActiveFilters()) _buildActiveFilterChips(),
+            // Active filter chips — only shown after applying
+            if (_filtersApplied && _hasActiveFilters()) _buildActiveFilterChips(),
             Expanded(
               child: _isSearching
                 ? const Center(child: CircularProgressIndicator(
@@ -380,7 +382,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                   color: OlfatoTokens.ink,
                 ),
               ),
-              if (_hasActiveFilters()) ...[
+              if (_filtersApplied && _hasActiveFilters()) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -574,7 +576,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() => _showAdvancedSearch = false);
+                  setState(() {
+                    _showAdvancedSearch = false;
+                    _filtersApplied = true;
+                  });
                   _applyAdvancedSearch();
                 },
                 style: ElevatedButton.styleFrom(
