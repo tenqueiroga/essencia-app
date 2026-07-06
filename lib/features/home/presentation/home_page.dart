@@ -689,52 +689,94 @@ class _CompatibilitySectionState extends State<_CompatibilitySection> {
 
 // ─── AuraCTA (with logo image) ────────────────────────────────────────────────
 
-class _AuraCTA extends StatelessWidget {
+// ─── Daily Tip from Aura ──────────────────────────────────────────────────────
+
+class _AuraCTA extends StatefulWidget {
   const _AuraCTA();
 
   @override
+  State<_AuraCTA> createState() => _AuraCTAState();
+}
+
+class _AuraCTAState extends State<_AuraCTA> {
+  String? _tip;
+  String? _icon;
+  String? _action;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTip();
+  }
+
+  Future<void> _loadTip() async {
+    try {
+      final response = await ApiClient().dio.get('/suggestions/tip');
+      final data = response.data as Map<String, dynamic>;
+      if (mounted) {
+        setState(() {
+          _tip = data['tip'] as String?;
+          _icon = data['icon'] as String?;
+          _action = data['action'] as String?;
+        });
+      }
+    } catch (_) {}
+  }
+
+  IconData _getIcon() {
+    return switch (_icon) {
+      'camera' => Icons.camera_alt_outlined,
+      'add' => Icons.add_circle_outline,
+      'search' => Icons.search_rounded,
+      'collection' => Icons.grid_view_rounded,
+      'journal' => Icons.book_outlined,
+      'decant' => Icons.science_outlined,
+      'amostra' => Icons.colorize_outlined,
+      'wishlist' => Icons.favorite_border_rounded,
+      'explore' => Icons.explore_outlined,
+      'star' => Icons.star_outline_rounded,
+      'compare' => Icons.compare_arrows,
+      _ => Icons.auto_awesome,
+    };
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_tip == null) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: GestureDetector(
-        onTap: () => context.go('/chat'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (_action != null && _action!.isNotEmpty) {
+            context.push(_action!);
+          } else {
+            context.push('/chat');
+          }
+        },
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: OlfatoTokens.mist,
+            gradient: LinearGradient(
+              colors: [OlfatoTokens.plum.withValues(alpha: 0.06), OlfatoTokens.pitanga.withValues(alpha: 0.04)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
-            border: Border.all(color: OlfatoTokens.borderLight),
+            border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.15)),
           ),
           child: Row(
             children: [
-              // Aura avatar — logo image with gradient fallback
               Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: OlfatoTokens.plum.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: Image.asset(
-                  'assets/images/olfato_simbolo.png',
-                  width: 40,
-                  height: 40,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: OlfatoTokens.auraGradient,
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                  ),
-                ),
+                child: Icon(_getIcon(), color: OlfatoTokens.plum, size: 18),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -742,29 +784,28 @@ class _AuraCTA extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pergunte à Aura',
+                      'Sugestão da Aura',
                       style: GoogleFonts.inter(
-                        fontSize: 15,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: OlfatoTokens.ink,
+                        color: OlfatoTokens.plum,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
-                      'Tire dúvidas e receba recomendações personalizadas',
+                      _tip!,
                       style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: OlfatoTokens.gray,
+                        fontSize: 13,
+                        color: OlfatoTokens.ink,
+                        height: 1.4,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: OlfatoTokens.gray,
-                size: 20,
-              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded, color: OlfatoTokens.gray, size: 18),
             ],
           ),
         ),
