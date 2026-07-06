@@ -227,12 +227,11 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
           const SizedBox(height: 24),
           _CollectionButton(perfumeId: widget.perfumeId, perfumeName: _perfume!['name'] as String? ?? ''),
           const SizedBox(height: 12),
-          // Compare button — navigates to comparador VS with a modal to pick second perfume
-          if (_similares.isNotEmpty)
-            _CompareButton(
-              currentPerfumeId: widget.perfumeId,
-              similares: _similares,
-            ),
+          // Compare button — navigates to comparador VS with search for second perfume
+          _CompareButton(
+            currentPerfumeId: widget.perfumeId,
+            similares: _similares,
+          ),
           const SizedBox(height: 16),
           _AuraCTA(perfume: _perfume!),
           const SizedBox(height: 40),
@@ -2041,7 +2040,8 @@ class _DupeOfTag extends StatelessWidget {
 
 // ─── CompareButton ────────────────────────────────────────────────────────────
 
-/// Button that lets the user pick a similar perfume to compare side-by-side.
+/// Button that navigates to the comparador VS with this perfume pre-loaded
+/// and an empty slot for the user to search for the second perfume.
 class _CompareButton extends StatelessWidget {
   final String currentPerfumeId;
   final List<dynamic> similares;
@@ -2053,7 +2053,9 @@ class _CompareButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: OutlinedButton.icon(
-        onPressed: () => _showComparePicker(context),
+        onPressed: () {
+          context.push('/compare?perfume1=$currentPerfumeId');
+        },
         icon: const Icon(Icons.compare_arrows),
         label: const Text('Comparar com outro'),
         style: OutlinedButton.styleFrom(
@@ -2063,50 +2065,6 @@ class _CompareButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
           ),
           minimumSize: const Size(double.infinity, 48),
-        ),
-      ),
-    );
-  }
-
-  void _showComparePicker(BuildContext context) {
-    final items = similares.take(10).toList();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: OlfatoTokens.vanilla,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(width: 40, height: 4, decoration: BoxDecoration(color: OlfatoTokens.gray, borderRadius: BorderRadius.circular(2))),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Comparar com qual?',
-              style: GoogleFonts.ebGaramond(fontSize: 20, fontWeight: FontWeight.w700, color: OlfatoTokens.ink),
-            ),
-            const SizedBox(height: 12),
-            ...items.map((item) {
-              final name = item['name'] as String? ?? '';
-              final brand = item['brand'] as String? ?? '';
-              final id = item['id']?.toString() ?? '';
-              return ListTile(
-                leading: const Icon(Icons.local_florist, color: OlfatoTokens.plum),
-                title: Text(name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500)),
-                subtitle: Text(brand, style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray)),
-                trailing: const Icon(Icons.chevron_right, color: OlfatoTokens.gray),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  context.push('/compare?perfume1=$currentPerfumeId&perfume2=$id');
-                },
-              );
-            }),
-          ],
         ),
       ),
     );

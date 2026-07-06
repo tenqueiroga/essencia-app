@@ -173,21 +173,34 @@ class _ComparePageState extends State<ComparePage> {
   String? _diferencaPrincipal;
   bool _loading = true;
   bool _hasError = false;
+  String? _perfume2Id;
+
+  // Search for second perfume
+  final _searchController = TextEditingController();
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
+    _perfume2Id = widget.perfume2Id;
     _loadComparison();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  bool get _hasPerfume1 =>
+      widget.perfume1Id != null && widget.perfume1Id!.isNotEmpty;
+
   bool get _hasBothPerfumes =>
-      widget.perfume1Id != null &&
-      widget.perfume1Id!.isNotEmpty &&
-      widget.perfume2Id != null &&
-      widget.perfume2Id!.isNotEmpty;
+      _hasPerfume1 && _perfume2Id != null && _perfume2Id!.isNotEmpty;
 
   Future<void> _loadComparison() async {
-    if (!_hasBothPerfumes) {
+    if (!_hasPerfume1) {
       setState(() => _loading = false);
       return;
     }
@@ -195,20 +208,21 @@ class _ComparePageState extends State<ComparePage> {
     setState(() {
       _loading = true;
       _hasError = false;
+      _diferencaPrincipal = null;
     });
 
     try {
-      // Fetch both perfumes in parallel
-      final results = await Future.wait([
-        ApiClient().dio.get('/perfumes/${widget.perfume1Id}'),
-        ApiClient().dio.get('/perfumes/${widget.perfume2Id}'),
-      ]);
-
-      final leftData = results[0].data as Map<String, dynamic>;
-      final rightData = results[1].data as Map<String, dynamic>;
-
+      // Always load perfume 1
+      final leftResponse = await ApiClient().dio.get('/perfumes/${widget.perfume1Id}');
+      final leftData = leftResponse.data as Map<String, dynamic>;
       final left = _ComparisonPerfume.fromJson(leftData);
-      final right = _ComparisonPerfume.fromJson(rightData);
+
+      _ComparisonPerfume? right;
+      if (_hasBothPerfumes) {
+        final rightResponse = await ApiClient().dio.get('/perfumes/$_perfume2Id');
+        final rightData = rightResponse.data as Map<String, dynamic>;
+        right = _ComparisonPerfume.fromJson(rightData);
+      }
 
       if (mounted) {
         setState(() {
@@ -218,8 +232,7 @@ class _ComparePageState extends State<ComparePage> {
         });
       }
 
-      // Fetch AI-generated difference in background (non-blocking)
-      _loadAiDifference();
+      if (_hasBothPerfumes) _loadAiDifference();
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -305,8 +318,17 @@ class _ComparePageState extends State<ComparePage> {
       );
     }
 
-    // Empty state: fewer than 2 perfumes selected
-    if (!_hasBothPerfumes) {
+    if (_hasError) {
+      return _buildErrorState();
+    }
+
+    // Has perfume 1 but no perfume 2 — show left card + search for right
+    if (_left != null && _right == null) {
+      return _buildSelectSecondPerfume();
+    }
+
+    // No perfumes at all
+    if (!_hasPerfume1) {
       return _buildEmptyState();
     }
 
@@ -466,6 +488,158 @@ class _ComparePageState extends State<ComparePage> {
                 height: 1.5,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectSecondPerfume() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        children: [
+          // Show perfume 1 card
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: OlfatoTokens.mist,
+              borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+              border: Border.all(color: OlfatoTokens.borderLight),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 50, height: 60,
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+                  clipBehavior: Clip.antiAlias,
+                  child: _left!.imageUrl != null && _proxyUrl(_left!.imageUrl).isNotEmpty
+                      ? Image.network(_proxyUrl(_left!.imageUrl), fit: BoxFit.contain)
+                      : const Icon(Icons.local_florist, color: OlfatoTokens.plum),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_left!.name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
+                      Text(_left!.brand, style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.plum)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.check_circle, color: OlfatoTokens.green, size: 20),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // VS divider
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: OlfatoTokens.plum, shape: BoxShape.circle),
+            child: Text('VS', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white)),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Search for second perfume
+          Text('Comparar com...', style: GoogleFonts.ebGaramond(fontSize: 18, fontWeight: FontWeight.w700, color: OlfatoTokens.ink)),
+          const SizedBox(height: 12),
+
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar perfume por nome ou marca',
+              hintStyle: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              prefixIcon: const Icon(Icons.search, color: OlfatoTokens.plum, size: 20),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.plum)),
+              suffixIcon: _isSearching ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: OlfatoTokens.plum))) : null,
+            ),
+            style: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.ink),
+            onChanged: _onSearchChanged,
+          ),
+
+          const SizedBox(height: 12),
+
+          // Search results
+          ..._searchResults.map((p) => _buildSearchResultItem(p)),
+        ],
+      ),
+    );
+  }
+
+  Timer? _searchDebounce;
+
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    if (query.length < 2) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () => _performSearch(query));
+  }
+
+  Future<void> _performSearch(String query) async {
+    setState(() => _isSearching = true);
+    try {
+      final response = await ApiClient().dio.get('/perfumes/search', queryParameters: {'q': query});
+      final results = (response.data as List).map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map)).toList();
+      if (mounted) setState(() { _searchResults = results.take(8).toList(); _isSearching = false; });
+    } catch (_) {
+      if (mounted) setState(() => _isSearching = false);
+    }
+  }
+
+  Widget _buildSearchResultItem(Map<String, dynamic> perfume) {
+    final name = perfume['name'] as String? ?? '';
+    final brand = perfume['brand'] as String? ?? '';
+    final imageUrl = _proxyUrl(perfume['image_url'] as String?);
+    final perfumeId = perfume['id']?.toString() ?? '';
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _perfume2Id = perfumeId;
+          _searchResults = [];
+          _searchController.clear();
+        });
+        _loadComparison();
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+          border: Border.all(color: OlfatoTokens.borderLight),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40, height: 50,
+              decoration: BoxDecoration(color: OlfatoTokens.mist, borderRadius: BorderRadius.circular(6)),
+              clipBehavior: Clip.antiAlias,
+              child: imageUrl.isNotEmpty
+                  ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: OlfatoTokens.plum, size: 18))
+                  : const Icon(Icons.local_florist, color: OlfatoTokens.plum, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: OlfatoTokens.ink), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(brand, style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray)),
+                ],
+              ),
+            ),
+            Icon(Icons.compare_arrows, color: OlfatoTokens.plum, size: 18),
           ],
         ),
       ),
