@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:go_router/go_router.dart';
@@ -412,20 +413,27 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: OlfatoTokens.mist,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
           border: Border.all(color: OlfatoTokens.borderLight),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Família olfativa chips
-            Text('Família olfativa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
-            const SizedBox(height: 8),
+            // Família olfativa
+            _filterSectionLabel('Família Olfativa', Icons.spa_outlined),
+            const SizedBox(height: 10),
             Wrap(
-              spacing: 8, runSpacing: 8,
+              spacing: 6, runSpacing: 6,
               children: families.map<Widget>((f) {
                 final familyName = f['name'] as String? ?? '';
                 final isSelected = _selectedFamily == familyName;
@@ -436,83 +444,192 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                     });
                     _applyAdvancedSearch();
                   },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
-                      color: isSelected ? OlfatoTokens.plum : Colors.white,
-                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                      border: Border.all(color: isSelected ? OlfatoTokens.plum : OlfatoTokens.borderLight),
+                      color: isSelected ? OlfatoTokens.plum : OlfatoTokens.mist,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? OlfatoTokens.plum : OlfatoTokens.borderLight,
+                      ),
                     ),
                     child: Text(
                       familyName,
-                      style: TextStyle(
-                        fontSize: 11,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
                         color: isSelected ? Colors.white : OlfatoTokens.ink,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                       ),
                     ),
                   ),
                 );
               }).toList(),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
+
             // Marca
-            Text('Marca', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
-            const SizedBox(height: 6),
+            _filterSectionLabel('Marca', Icons.business_outlined),
+            const SizedBox(height: 8),
             TextField(
               decoration: InputDecoration(
-                hintText: 'Digite a marca...',
+                hintText: 'Ex: Dior, Tom Ford...',
+                hintStyle: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
+                filled: true,
+                fillColor: OlfatoTokens.mist,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                  borderSide: BorderSide(color: OlfatoTokens.borderLight),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                  borderSide: BorderSide(color: OlfatoTokens.plum),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.search, size: 18, color: OlfatoTokens.plum),
+                  onPressed: _applyAdvancedSearch,
+                ),
               ),
-              style: const TextStyle(fontSize: 13),
+              style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
               onChanged: (v) => _brandFilter = v,
               onSubmitted: (_) => _applyAdvancedSearch(),
             ),
-            const SizedBox(height: 14),
-            // Gênero
-            Text('Gênero', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
-            const SizedBox(height: 6),
-            _buildDropdown(['Todos', 'Masculino', 'Feminino', 'Unissex'], _genderFilter, (v) {
-              setState(() => _genderFilter = v);
-              _applyAdvancedSearch();
-            }),
-            const SizedBox(height: 14),
-            // Horário
-            Text('Horário', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
-            const SizedBox(height: 6),
-            _buildDropdown(['Todos', 'Melhor para Dia', 'Melhor para Noite'], _timeFilter, (v) {
+            const SizedBox(height: 18),
+
+            // Row: Gênero + Horário
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _filterSectionLabel('Gênero', Icons.person_outline),
+                      const SizedBox(height: 8),
+                      _buildSegmented(['Todos', 'Masc', 'Fem', 'Uni'], _genderFilter, {
+                        'Todos': 'Todos', 'Masc': 'Masculino', 'Fem': 'Feminino', 'Uni': 'Unissex',
+                      }, (v) {
+                        setState(() => _genderFilter = v);
+                        _applyAdvancedSearch();
+                      }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            // Row: Horário
+            _filterSectionLabel('Horário', Icons.schedule_outlined),
+            const SizedBox(height: 8),
+            _buildSegmented(['Todos', 'Dia', 'Noite'], _timeFilter, {
+              'Todos': 'Todos', 'Dia': 'Melhor para Dia', 'Noite': 'Melhor para Noite',
+            }, (v) {
               setState(() => _timeFilter = v);
               _applyAdvancedSearch();
             }),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
+
             // Faixa de preço
-            Text('Faixa de preço', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
-            const SizedBox(height: 6),
-            _buildDropdown(['Todos', 'Até R\$100', 'R\$100-300', 'R\$300-500', 'Acima de R\$500'], _priceFilter, (v) {
+            _filterSectionLabel('Faixa de Preço', Icons.attach_money),
+            const SizedBox(height: 8),
+            _buildSegmented(['Todos', '< 100', '100-300', '300-500', '500+'], _priceFilter, {
+              'Todos': 'Todos', '< 100': 'Até R\$100', '100-300': 'R\$100-300',
+              '300-500': 'R\$300-500', '500+': 'Acima de R\$500',
+            }, (v) {
               setState(() => _priceFilter = v);
               _applyAdvancedSearch();
             }),
             const SizedBox(height: 14),
+
             // Apenas dupes
-            Row(
-              children: [
-                Text('Apenas dupes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.ink)),
-                const Spacer(),
-                Switch.adaptive(
-                  value: _onlyDupes,
-                  activeColor: OlfatoTokens.pitanga,
-                  onChanged: (v) {
-                    setState(() => _onlyDupes = v);
-                    _applyAdvancedSearch();
-                  },
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _onlyDupes ? OlfatoTokens.pitanga.withValues(alpha: 0.08) : OlfatoTokens.mist,
+                borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                border: Border.all(color: _onlyDupes ? OlfatoTokens.pitanga.withValues(alpha: 0.3) : OlfatoTokens.borderLight),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.compare_arrows, size: 16, color: _onlyDupes ? OlfatoTokens.pitanga : OlfatoTokens.gray),
+                  const SizedBox(width: 8),
+                  Text('Apenas dupes', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: OlfatoTokens.ink)),
+                  const Spacer(),
+                  Switch.adaptive(
+                    value: _onlyDupes,
+                    activeColor: OlfatoTokens.pitanga,
+                    onChanged: (v) {
+                      setState(() => _onlyDupes = v);
+                      _applyAdvancedSearch();
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // Apply button
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _applyAdvancedSearch,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: OlfatoTokens.plum,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl)),
                 ),
-              ],
+                child: Text('Aplicar Filtros', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _filterSectionLabel(String label, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: OlfatoTokens.plum),
+        const SizedBox(width: 6),
+        Text(label, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: OlfatoTokens.ink)),
+      ],
+    );
+  }
+
+  Widget _buildSegmented(List<String> labels, String currentValue, Map<String, String> valueMap, ValueChanged<String> onChanged) {
+    return Wrap(
+      spacing: 4, runSpacing: 4,
+      children: labels.map((label) {
+        final actualValue = valueMap[label] ?? label;
+        final isSelected = currentValue == actualValue;
+        return GestureDetector(
+          onTap: () => onChanged(actualValue),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: isSelected ? OlfatoTokens.plum.withValues(alpha: 0.12) : OlfatoTokens.mist,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isSelected ? OlfatoTokens.plum : OlfatoTokens.borderLight),
+            ),
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? OlfatoTokens.plum : OlfatoTokens.gray,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -689,6 +806,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     final Map<String, dynamic> params = {};
     _addFilterParams(params);
 
+    // Allow filter-only search (no text required)
     if (params.isEmpty && _searchController.text.trim().isEmpty) {
       setState(() { _searchResults = []; _hasSearched = false; });
       return;
@@ -700,10 +818,11 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   Future<void> _performAdvancedSearch(Map<String, dynamic> params) async {
     setState(() => _isSearching = true);
     try {
-      final response = await ApiClient().dio.get('/perfumes/search', queryParameters: {
-        'q': _searchController.text.trim().isNotEmpty ? _searchController.text.trim() : '',
-        ...params,
-      });
+      final queryParams = <String, dynamic>{...params};
+      final text = _searchController.text.trim();
+      if (text.isNotEmpty) queryParams['q'] = text;
+
+      final response = await ApiClient().dio.get('/perfumes/search', queryParameters: queryParams);
       if (mounted) setState(() {
         _searchResults = response.data as List<dynamic>;
         _isSearching = false;
