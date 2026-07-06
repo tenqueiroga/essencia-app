@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
-import '../../../core/constants/api_constants.dart';
 import '../models/daily_suggestion.dart';
 
 /// Structured perfume suggestion from Aura's JSON response.
@@ -17,6 +16,7 @@ class _AuraSuggestion {
   final int score;
   final String reason;
   final String? id;
+  final String? imageUrl;
 
   const _AuraSuggestion({
     required this.name,
@@ -24,6 +24,7 @@ class _AuraSuggestion {
     required this.score,
     required this.reason,
     this.id,
+    this.imageUrl,
   });
 
   factory _AuraSuggestion.fromJson(Map<String, dynamic> json) {
@@ -34,6 +35,7 @@ class _AuraSuggestion {
       score: (json['score'] as num?)?.toInt() ?? 0,
       reason: json['reason'] as String? ?? '',
       id: rawId.isNotEmpty ? rawId : null,
+      imageUrl: json['image_url'] as String?,
     );
   }
 }
@@ -385,9 +387,7 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildSuggestionCard(_AuraSuggestion suggestion, int index) {
     final isNavigating = _navigatingCardIndex == index;
-    final imageUrl = suggestion.id != null
-        ? '${ApiConstants.baseUrl}/perfumes/${suggestion.id}/image'
-        : null;
+    final imageUrl = suggestion.imageUrl;
 
     return GestureDetector(
       onTap: (_navigatingCardIndex != null) ? null : () => _navigateToPerfume(suggestion, index),
@@ -403,8 +403,12 @@ class _ChatPageState extends State<ChatPage> {
           // Thumbnail
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: SizedBox(width: 44, height: 44, child: imageUrl != null
-                ? Image.network(imageUrl, fit: BoxFit.cover,
+            child: SizedBox(width: 44, height: 44, child: imageUrl != null && imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl.contains('fimgs.net')
+                        ? 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(imageUrl)}'
+                        : imageUrl,
+                    fit: BoxFit.cover,
                     loadingBuilder: (_, child, p) => p == null ? child : _placeholder(),
                     errorBuilder: (_, __, ___) => _placeholder())
                 : _placeholder()),
