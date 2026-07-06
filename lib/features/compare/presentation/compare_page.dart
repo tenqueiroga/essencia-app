@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -237,16 +238,29 @@ class _ComparePageState extends State<ComparePage> {
           .post('/chat/compare', data: {
             'perfume1_id': _left!.id,
             'perfume2_id': _right!.id,
-          })
-          .timeout(const Duration(seconds: 20));
+          },
+          options: Options(validateStatus: (status) => status != null && status < 600),
+          )
+          .timeout(const Duration(seconds: 25));
+      
       final data = response.data as Map<String, dynamic>;
-      final reply = data['difference'] as String? ?? data['reply'] as String? ?? data['message'] as String?;
-      if (mounted && reply != null && reply.isNotEmpty) {
-        setState(() => _diferencaPrincipal = reply);
+      
+      if (response.statusCode == 200) {
+        final reply = data['difference'] as String?;
+        if (mounted && reply != null && reply.isNotEmpty) {
+          setState(() => _diferencaPrincipal = reply);
+          return;
+        }
+      }
+      
+      // Non-200 or no difference
+      if (mounted) {
+        final errorMsg = data['error']?['message'] as String? ?? 'Indisponível no momento.';
+        setState(() => _diferencaPrincipal = errorMsg);
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _diferencaPrincipal = 'Indisponível no momento.');
+        setState(() => _diferencaPrincipal = 'Tempo esgotado. Tente comparar novamente.');
       }
     }
   }
