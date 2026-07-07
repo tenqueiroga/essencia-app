@@ -106,8 +106,9 @@ class _JournalPageState extends ConsumerState<JournalPage> {
 
     // Days with entries
     final entryDays = _entries.map((e) {
-      final date = DateTime.parse(e['date']);
-      return date.day;
+      final dateStr = e['date']?.toString() ?? '';
+      final date = DateTime.tryParse(dateStr);
+      return date?.day ?? 0;
     }).toSet();
 
     return Padding(
@@ -180,7 +181,11 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     }
 
     final dayStr = DateFormat('yyyy-MM-dd').format(_selectedDay!);
-    final dayEntries = _entries.where((e) => e['date'] == dayStr).toList();
+    final dayEntries = _entries.where((e) {
+      final entryDate = e['date']?.toString() ?? '';
+      // Handle both "2026-07-06" and "2026-07-06T00:00:00.000000Z" formats
+      return entryDate.startsWith(dayStr);
+    }).toList();
 
     if (dayEntries.isEmpty) {
       return Center(child: Column(
