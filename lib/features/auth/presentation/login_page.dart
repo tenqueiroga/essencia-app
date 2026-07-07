@@ -21,9 +21,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
-    // Redirect if authenticated
+    // Redirect if authenticated (but not if viewing shared content)
     ref.listen(authProvider, (prev, next) {
       if (next.isAuthenticated) {
+        final currentPath = GoRouterState.of(context).uri.path;
+        if (currentPath.startsWith('/shared/')) return;
         final onboarded = next.user?['onboarding_completed'] == true;
         context.go(onboarded ? '/' : '/onboarding');
       }

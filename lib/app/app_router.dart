@@ -19,6 +19,12 @@ import 'main_shell.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
+  redirect: (context, state) {
+    final path = state.uri.path;
+    // Allow shared collection page to load directly from URL
+    if (path.startsWith('/shared/')) return null;
+    return null;
+  },
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingPage()),
