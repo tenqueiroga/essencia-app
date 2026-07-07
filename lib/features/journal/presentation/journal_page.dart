@@ -25,6 +25,14 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     _loadData();
   }
 
+  String _proxyUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.contains('fimgs.net')) {
+      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+    }
+    return url;
+  }
+
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
@@ -211,18 +219,32 @@ class _JournalPageState extends ConsumerState<JournalPage> {
       itemBuilder: (_, i) {
         final entry = dayEntries[i];
         final perfume = entry['perfume'];
+        final imageUrl = _proxyUrl(perfume?['image_url'] as String?);
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           child: GlassCard(
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 24),
+                // Perfume image
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: 48,
+                    height: 60,
+                    color: Colors.white,
+                    child: imageUrl.isNotEmpty
+                        ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 24))
+                        : const Icon(Icons.local_florist, color: OlfatoTokens.amber, size: 24),
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(perfume?['name'] ?? 'Perfume', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    if (perfume?['brand'] != null)
+                      Text(perfume['brand'], style: const TextStyle(color: OlfatoTokens.amber, fontSize: 12)),
                     if (entry['occasion'] != null)
                       Text(entry['occasion'], style: const TextStyle(color: OlfatoTokens.gray, fontSize: 12)),
                     if (entry['notes'] != null)
