@@ -325,22 +325,22 @@ class _DesktopLayout extends StatelessWidget {
 }
 
 /// Brand logo widget with image fallback.
-/// Uses the horizontal logo which already contains the symbol + "OLFATO" wordmark.
+/// Uses the ameixa (solid plum) horizontal logo for max legibility at sidebar sizes.
 class _BrandLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Image.asset(
-      'assets/images/olfato_logo_horizontal.png',
-      height: 48,
+      'assets/images/olfato_logo_sidebar.png',
+      height: 56,
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
         return const Text(
           'OLFATO',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.w700,
             letterSpacing: 2,
-            color: OlfatoTokens.ink,
+            color: OlfatoTokens.plum,
           ),
         );
       },
