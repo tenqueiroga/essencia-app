@@ -22,6 +22,7 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingPage()),
+    GoRoute(path: '/shared/:token', builder: (_, state) => SharedCollectionPage(token: state.pathParameters['token']!)),
     ShellRoute(
       builder: (_, __, child) => MainShell(child: child),
       routes: [
@@ -48,7 +49,6 @@ final appRouter = GoRouter(
         ),
         GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
         GoRoute(path: '/collection', builder: (_, __) => const CollectionPage()),
-        GoRoute(path: '/shared/:token', builder: (_, state) => SharedCollectionPage(token: state.pathParameters['token']!)),
         GoRoute(path: '/wishlist', builder: (_, __) => const WishlistPage()),
         GoRoute(path: '/journal', builder: (_, __) => const JournalPage()),
         GoRoute(
