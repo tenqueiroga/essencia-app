@@ -16,13 +16,17 @@ class _ComparisonPerfume {
   final String? imageUrl;
   final String? familia;
   final String? genero;
-  final String? notas;
+  final String? notasTopo;
+  final String? notasCoracao;
+  final String? notasBase;
   final String? fixacao;
   final String? projecao;
   final String? preco;
   final String? cusBeneficio;
   final String? ano;
   final String? perfumista;
+  final String? estacao;
+  final String? horario;
   final double? rating;
   final int? ratingCount;
 
@@ -33,13 +37,17 @@ class _ComparisonPerfume {
     this.imageUrl,
     this.familia,
     this.genero,
-    this.notas,
+    this.notasTopo,
+    this.notasCoracao,
+    this.notasBase,
     this.fixacao,
     this.projecao,
     this.preco,
     this.cusBeneficio,
     this.ano,
     this.perfumista,
+    this.estacao,
+    this.horario,
     this.rating,
     this.ratingCount,
   });
@@ -83,12 +91,49 @@ class _ComparisonPerfume {
       }
     }
 
-    // Notas de topo como "cheiro" resumido
-    String? notas;
+    // Notas
+    String? notasTopo;
     final topNotes = json['top_notes'] as List?;
     if (topNotes != null && topNotes.isNotEmpty) {
-      final noteNames = topNotes.take(4).map((n) => n is String ? n : (n as Map)['name'] ?? '').toList();
-      notas = noteNames.join(', ');
+      notasTopo = topNotes.take(4).map((n) => n is String ? n : (n as Map)['name'] ?? '').join(', ');
+    }
+
+    String? notasCoracao;
+    final heartNotes = json['heart_notes'] as List?;
+    if (heartNotes != null && heartNotes.isNotEmpty) {
+      notasCoracao = heartNotes.take(4).map((n) => n is String ? n : (n as Map)['name'] ?? '').join(', ');
+    }
+
+    String? notasBase;
+    final baseNotes = json['base_notes'] as List?;
+    if (baseNotes != null && baseNotes.isNotEmpty) {
+      notasBase = baseNotes.take(4).map((n) => n is String ? n : (n as Map)['name'] ?? '').join(', ');
+    }
+
+    // Estação (dominant season)
+    String? estacao;
+    final seasonData = json['season_data'] as List?;
+    if (seasonData != null && seasonData.isNotEmpty) {
+      String bestSeason = '';
+      num bestPct = 0;
+      for (final s in seasonData) {
+        final pct = (s['percentage'] as num?) ?? 0;
+        if (pct > bestPct) { bestPct = pct; bestSeason = s['name'] as String? ?? ''; }
+      }
+      if (bestSeason.isNotEmpty) estacao = bestSeason;
+    }
+
+    // Horário (dominant time)
+    String? horario;
+    final timeData = json['time_of_day'] as List?;
+    if (timeData != null && timeData.isNotEmpty) {
+      String bestTime = '';
+      num bestPct = 0;
+      for (final t in timeData) {
+        final pct = (t['percentage'] as num?) ?? 0;
+        if (pct > bestPct) { bestPct = pct; bestTime = t['name'] as String? ?? ''; }
+      }
+      if (bestTime.isNotEmpty) horario = bestTime;
     }
 
     // Família
@@ -107,13 +152,17 @@ class _ComparisonPerfume {
       imageUrl: json['image_url'] as String?,
       familia: familia,
       genero: json['gender'] as String?,
-      notas: notas,
+      notasTopo: notasTopo,
+      notasCoracao: notasCoracao,
+      notasBase: notasBase,
       fixacao: fixacao,
       projecao: projecao,
       preco: preco,
       cusBeneficio: cusBeneficio,
       ano: json['year_launched']?.toString(),
       perfumista: json['perfumer'] as String?,
+      estacao: estacao,
+      horario: horario,
       rating: rating,
       ratingCount: json['rating_count'] as int?,
     );
@@ -354,97 +403,50 @@ class _ComparePageState extends State<ComparePage> {
           ),
           const SizedBox(height: 24),
 
-          // Comparison fields
-          _ComparisonField(
-            label: 'Notas de Topo',
-            icon: Icons.air,
-            leftWidget: _buildTextValue(_left!.notas),
-            rightWidget: _buildTextValue(_right!.notas),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Família Olfativa',
-            icon: Icons.spa_outlined,
-            leftWidget: _buildTextValue(_left!.familia),
-            rightWidget: _buildTextValue(_right!.familia),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Fixação',
-            icon: Icons.timer_outlined,
-            leftWidget: _buildScaleBar(
-              value: _left!.fixacao,
-              categories: const ['curta', 'média', 'longa'],
+          // Comparison — each row is a card with left and right columns
+          _ComparisonRow(label: 'Notas de Topo', icon: Icons.air, left: _left!.notasTopo, right: _right!.notasTopo),
+          _ComparisonRow(label: 'Notas de Coração', icon: Icons.favorite_outline, left: _left!.notasCoracao, right: _right!.notasCoracao),
+          _ComparisonRow(label: 'Notas de Base', icon: Icons.landscape_outlined, left: _left!.notasBase, right: _right!.notasBase),
+          _ComparisonRow(label: 'Família Olfativa', icon: Icons.spa_outlined, left: _left!.familia, right: _right!.familia),
+          _ComparisonScaleRow(label: 'Fixação', icon: Icons.timer_outlined, leftVal: _left!.fixacao, rightVal: _right!.fixacao, categories: const ['curta', 'média', 'longa']),
+          _ComparisonScaleRow(label: 'Projeção', icon: Icons.surround_sound_outlined, leftVal: _left!.projecao, rightVal: _right!.projecao, categories: const ['íntima', 'moderada', 'forte']),
+          _ComparisonRow(label: 'Estação', icon: Icons.wb_sunny_outlined, left: _left!.estacao, right: _right!.estacao),
+          _ComparisonRow(label: 'Horário', icon: Icons.schedule_outlined, left: _left!.horario, right: _right!.horario),
+          _ComparisonRow(label: 'Avaliação', icon: Icons.star_rounded, left: _left!.rating != null ? '${_left!.rating!.toStringAsFixed(1)} (${_left!.ratingCount ?? 0})' : null, right: _right!.rating != null ? '${_right!.rating!.toStringAsFixed(1)} (${_right!.ratingCount ?? 0})' : null),
+          _ComparisonRow(label: 'Preço', icon: Icons.attach_money, left: _left!.preco, right: _right!.preco),
+          _ComparisonRow(label: 'Custo-Benefício', icon: Icons.trending_up, left: _left!.cusBeneficio, right: _right!.cusBeneficio),
+          _ComparisonRow(label: 'Gênero', icon: Icons.person_outline, left: _left!.genero, right: _right!.genero),
+          _ComparisonRow(label: 'Perfumista', icon: Icons.brush_outlined, left: _left!.perfumista, right: _right!.perfumista),
+          _ComparisonRow(label: 'Ano', icon: Icons.calendar_today_outlined, left: _left!.ano, right: _right!.ano),
+
+          // AI Difference
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: OlfatoTokens.plum.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+              border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.15)),
             ),
-            rightWidget: _buildScaleBar(
-              value: _right!.fixacao,
-              categories: const ['curta', 'média', 'longa'],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.auto_awesome, size: 14, color: OlfatoTokens.plum),
+                  const SizedBox(width: 6),
+                  Text('Diferença principal (IA)', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: OlfatoTokens.plum)),
+                ]),
+                const SizedBox(height: 8),
+                _diferencaPrincipal != null
+                    ? Text(_diferencaPrincipal!, style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink, height: 1.4))
+                    : Row(children: [
+                        const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: OlfatoTokens.plum, strokeWidth: 1.5)),
+                        const SizedBox(width: 8),
+                        Text('Analisando...', style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray, fontStyle: FontStyle.italic)),
+                      ]),
+              ],
             ),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Projeção',
-            icon: Icons.surround_sound_outlined,
-            leftWidget: _buildScaleBar(
-              value: _left!.projecao,
-              categories: const ['íntima', 'moderada', 'forte'],
-            ),
-            rightWidget: _buildScaleBar(
-              value: _right!.projecao,
-              categories: const ['íntima', 'moderada', 'forte'],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Avaliação',
-            icon: Icons.star_rounded,
-            leftWidget: _buildRating(_left!.rating, _left!.ratingCount),
-            rightWidget: _buildRating(_right!.rating, _right!.ratingCount),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Preço',
-            icon: Icons.attach_money,
-            leftWidget: _buildTextValue(_left!.preco),
-            rightWidget: _buildTextValue(_right!.preco),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Custo-Benefício',
-            icon: Icons.trending_up,
-            leftWidget: _buildTextValue(_left!.cusBeneficio),
-            rightWidget: _buildTextValue(_right!.cusBeneficio),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Gênero',
-            icon: Icons.person_outline,
-            leftWidget: _buildTextValue(_left!.genero),
-            rightWidget: _buildTextValue(_right!.genero),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Perfumista',
-            icon: Icons.brush_outlined,
-            leftWidget: _buildTextValue(_left!.perfumista),
-            rightWidget: _buildTextValue(_right!.perfumista),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Ano',
-            icon: Icons.calendar_today_outlined,
-            leftWidget: _buildTextValue(_left!.ano),
-            rightWidget: _buildTextValue(_right!.ano),
-          ),
-          const SizedBox(height: 16),
-          _ComparisonField(
-            label: 'Diferença principal',
-            icon: Icons.compare_arrows,
-            leftWidget: _diferencaPrincipal != null
-                ? _buildTextValue(_diferencaPrincipal)
-                : _buildLoadingOrEmpty(),
-            rightWidget: null,
-            isFull: true,
           ),
           const SizedBox(height: 32),
 
@@ -1019,6 +1021,137 @@ class _ComparisonField extends StatelessWidget {
                 Expanded(child: rightWidget ?? const SizedBox.shrink()),
               ],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── New comparison row: two separate cards side by side ──────────────────────
+
+class _ComparisonRow extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final String? left;
+  final String? right;
+
+  const _ComparisonRow({required this.label, required this.icon, this.left, this.right});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Label
+          Row(children: [
+            Icon(icon, size: 13, color: OlfatoTokens.plum),
+            const SizedBox(width: 6),
+            Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: OlfatoTokens.plum)),
+          ]),
+          const SizedBox(height: 6),
+          // Two cards side by side
+          Row(
+            children: [
+              Expanded(child: _valueCard(left)),
+              const SizedBox(width: 8),
+              Expanded(child: _valueCard(right)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _valueCard(String? value) {
+    final hasValue = value != null && value.isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: OlfatoTokens.borderLight),
+      ),
+      child: Text(
+        hasValue ? value! : '—',
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          color: hasValue ? OlfatoTokens.ink : OlfatoTokens.gray,
+          height: 1.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _ComparisonScaleRow extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final String? leftVal;
+  final String? rightVal;
+  final List<String> categories;
+
+  const _ComparisonScaleRow({required this.label, required this.icon, this.leftVal, this.rightVal, required this.categories});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon, size: 13, color: OlfatoTokens.plum),
+            const SizedBox(width: 6),
+            Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: OlfatoTokens.plum)),
+          ]),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(child: _scaleCard(leftVal)),
+              const SizedBox(width: 8),
+              Expanded(child: _scaleCard(rightVal)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scaleCard(String? value) {
+    final activeIndex = value != null ? categories.indexOf(value.toLowerCase()) : -1;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: OlfatoTokens.borderLight),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: List.generate(categories.length, (i) {
+              final isActive = i <= activeIndex && activeIndex >= 0;
+              return Expanded(
+                child: Container(
+                  height: 6,
+                  margin: EdgeInsets.only(right: i < categories.length - 1 ? 2 : 0),
+                  decoration: BoxDecoration(
+                    color: isActive ? OlfatoTokens.plum.withValues(alpha: 0.3 + (i * 0.25)) : OlfatoTokens.mist,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value ?? '—',
+            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: value != null ? OlfatoTokens.plum : OlfatoTokens.gray),
+          ),
         ],
       ),
     );
