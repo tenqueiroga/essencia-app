@@ -332,41 +332,45 @@ class _BrandLogo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: OlfatoTokens.vanilla,
+            shape: BoxShape.circle,
+          ),
+          padding: const EdgeInsets.all(4),
+          child: Image.asset(
+            'assets/images/olfato_simbolo.png',
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Text(
+                  'O',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                    color: OlfatoTokens.plum,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
         Image.asset(
           'assets/images/olfato_logo_horizontal.png',
-          height: 32,
+          height: 22,
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: OlfatoTokens.auraGradient,
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'O',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Olfato',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
+            return const Text(
+              'OLFATO',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2,
+                color: OlfatoTokens.ink,
+              ),
             );
           },
         ),
