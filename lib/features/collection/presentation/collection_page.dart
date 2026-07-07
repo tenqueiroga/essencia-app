@@ -278,7 +278,13 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
                   try {
                     // Get or generate share link
                     final response = await ApiClient().dio.get('/collection/share-link');
-                    final url = response.data['url'] as String;
+                    final data = response.data as Map<String, dynamic>;
+                    final url = data['url'] as String? ?? '';
+
+                    if (url.isEmpty) {
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: link vazio'), backgroundColor: OlfatoTokens.error));
+                      return;
+                    }
 
                     final navigator = html.window.navigator;
                     if (js_util.hasProperty(navigator, 'share')) {
@@ -286,18 +292,17 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
                         final shareData = js_util.newObject<Object>();
                         js_util.setProperty(shareData, 'text', '🧴 Confira minha coleção de perfumes!\n$url');
                         js_util.setProperty(shareData, 'title', 'Minha Coleção — Olfato');
-                        js_util.setProperty(shareData, 'url', url);
                         await js_util.promiseToFuture(js_util.callMethod(navigator, 'share', [shareData]));
                       } catch (_) {
                         await Clipboard.setData(ClipboardData(text: url));
-                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Link copiado! 📋\n$url'), backgroundColor: OlfatoTokens.plum));
                       }
                     } else {
                       await Clipboard.setData(ClipboardData(text: url));
-                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Link copiado! 📋\n$url'), backgroundColor: OlfatoTokens.plum));
                     }
-                  } catch (_) {
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao gerar link'), backgroundColor: OlfatoTokens.error));
+                  } catch (e) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: ${e.toString().substring(0, (e.toString().length).clamp(0, 80))}'), backgroundColor: OlfatoTokens.error));
                   }
                 },
               ),
