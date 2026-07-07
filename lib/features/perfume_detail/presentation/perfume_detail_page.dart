@@ -984,7 +984,6 @@ class _SobreTab extends StatelessWidget {
     final gender = perfume['gender'] as String?;
     final collectionName = perfume['collection_name'] as String?;
     final reviewsCount = perfume['reviews_count'];
-    final barcode = perfume['barcode'] as String?;
     final topNotes = perfume['top_notes'] as List? ?? [];
     final heartNotes = perfume['heart_notes'] as List? ?? [];
     final baseNotes = perfume['base_notes'] as List? ?? [];
@@ -1063,8 +1062,6 @@ class _SobreTab extends StatelessWidget {
             _infoRow('Avaliações', '$reviewsCount avaliações'),
           if (totalNotes > 0)
             _infoRow('Composição', '$totalNotes notas (${topNotes.length} topo, ${heartNotes.length} coração, ${baseNotes.length} base)'),
-          if (barcode != null && barcode.isNotEmpty)
-            _infoRow('Código de barras', barcode),
         ],
       ),
     );

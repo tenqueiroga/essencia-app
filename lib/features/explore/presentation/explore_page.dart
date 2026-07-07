@@ -123,23 +123,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       return;
     }
 
-    // Detect if it's a barcode (all digits, 8-14 chars)
-    final isBarcode = RegExp(r'^\d{8,14}$').hasMatch(query.trim());
-
-    if (isBarcode) {
-      setState(() => _isSearching = true);
-      try {
-        final response = await ApiClient().dio.get('/perfumes/barcode/${query.trim()}');
-        if (mounted) setState(() {
-          _searchResults = [response.data];
-          _isSearching = false;
-        });
-      } catch (_) {
-        if (mounted) setState(() { _searchResults = []; _isSearching = false; });
-      }
-      return;
-    }
-
     // Text search — include any active filters
     setState(() => _isSearching = true);
     try {
@@ -155,12 +138,6 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     } catch (_) {
       if (mounted) setState(() { _isSearching = false; _hasSearched = true; });
     }
-  }
-
-  Future<void> _searchBarcode() async {
-    final code = _searchController.text.trim();
-    if (code.isEmpty) return;
-    _smartSearch(code);
   }
 
   void _openScanner() {

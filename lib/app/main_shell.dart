@@ -325,56 +325,25 @@ class _DesktopLayout extends StatelessWidget {
 }
 
 /// Brand logo widget with image fallback.
-/// Attempts to load the brand logo image; if it fails, displays text "Olfato".
+/// Uses the horizontal logo which already contains the symbol + "OLFATO" wordmark.
 class _BrandLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: OlfatoTokens.vanilla,
-            shape: BoxShape.circle,
+    return Image.asset(
+      'assets/images/olfato_logo_horizontal.png',
+      height: 48,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return const Text(
+          'OLFATO',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 2,
+            color: OlfatoTokens.ink,
           ),
-          padding: const EdgeInsets.all(4),
-          child: Image.asset(
-            'assets/images/olfato_simbolo.png',
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return const Center(
-                child: Text(
-                  'O',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: OlfatoTokens.plum,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(width: 10),
-        Image.asset(
-          'assets/images/olfato_logo_horizontal.png',
-          height: 22,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return const Text(
-              'OLFATO',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2,
-                color: OlfatoTokens.ink,
-              ),
-            );
-          },
-        ),
-      ],
+        );
+      },
     );
   }
 }
