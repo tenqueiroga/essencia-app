@@ -1027,7 +1027,7 @@ class _ComparisonField extends StatelessWidget {
   }
 }
 
-// ─── New comparison row: two separate cards side by side ──────────────────────
+// ─── New comparison row: single card with vertical divider ───────────────────
 
 class _ComparisonRow extends StatelessWidget {
   final String label;
@@ -1041,46 +1041,49 @@ class _ComparisonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Label
-          Row(children: [
-            Icon(icon, size: 13, color: OlfatoTokens.plum),
-            const SizedBox(width: 6),
-            Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: OlfatoTokens.plum)),
-          ]),
-          const SizedBox(height: 6),
-          // Two cards side by side
-          Row(
-            children: [
-              Expanded(child: _valueCard(left)),
-              const SizedBox(width: 8),
-              Expanded(child: _valueCard(right)),
-            ],
-          ),
-        ],
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.borderLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Label
+            Row(children: [
+              Icon(icon, size: 13, color: OlfatoTokens.plum),
+              const SizedBox(width: 6),
+              Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: OlfatoTokens.plum)),
+            ]),
+            const SizedBox(height: 8),
+            // Values with divider
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _valueText(left)),
+                  Container(width: 1, margin: const EdgeInsets.symmetric(horizontal: 10), color: OlfatoTokens.borderLight),
+                  Expanded(child: _valueText(right)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _valueCard(String? value) {
+  Widget _valueText(String? value) {
     final hasValue = value != null && value.isNotEmpty;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: OlfatoTokens.borderLight),
-      ),
-      child: Text(
-        hasValue ? value! : '—',
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          color: hasValue ? OlfatoTokens.ink : OlfatoTokens.gray,
-          height: 1.3,
-        ),
+    return Text(
+      hasValue ? value! : '—',
+      style: GoogleFonts.inter(
+        fontSize: 12,
+        color: hasValue ? OlfatoTokens.ink : OlfatoTokens.gray,
+        height: 1.3,
       ),
     );
   }
@@ -1099,61 +1102,65 @@ class _ComparisonScaleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            Icon(icon, size: 13, color: OlfatoTokens.plum),
-            const SizedBox(width: 6),
-            Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: OlfatoTokens.plum)),
-          ]),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(child: _scaleCard(leftVal)),
-              const SizedBox(width: 8),
-              Expanded(child: _scaleCard(rightVal)),
-            ],
-          ),
-        ],
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+          border: Border.all(color: OlfatoTokens.borderLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(icon, size: 13, color: OlfatoTokens.plum),
+              const SizedBox(width: 6),
+              Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: OlfatoTokens.plum)),
+            ]),
+            const SizedBox(height: 8),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _scaleWidget(leftVal)),
+                  Container(width: 1, margin: const EdgeInsets.symmetric(horizontal: 10), color: OlfatoTokens.borderLight),
+                  Expanded(child: _scaleWidget(rightVal)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _scaleCard(String? value) {
+  Widget _scaleWidget(String? value) {
     final activeIndex = value != null ? categories.indexOf(value.toLowerCase()) : -1;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: OlfatoTokens.borderLight),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: List.generate(categories.length, (i) {
-              final isActive = i <= activeIndex && activeIndex >= 0;
-              return Expanded(
-                child: Container(
-                  height: 6,
-                  margin: EdgeInsets.only(right: i < categories.length - 1 ? 2 : 0),
-                  decoration: BoxDecoration(
-                    color: isActive ? OlfatoTokens.plum.withValues(alpha: 0.3 + (i * 0.25)) : OlfatoTokens.mist,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: List.generate(categories.length, (i) {
+            final isActive = i <= activeIndex && activeIndex >= 0;
+            return Expanded(
+              child: Container(
+                height: 6,
+                margin: EdgeInsets.only(right: i < categories.length - 1 ? 2 : 0),
+                decoration: BoxDecoration(
+                  color: isActive ? OlfatoTokens.plum.withValues(alpha: 0.3 + (i * 0.25)) : OlfatoTokens.mist,
+                  borderRadius: BorderRadius.circular(3),
                 ),
-              );
-            }),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value ?? '—',
-            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: value != null ? OlfatoTokens.plum : OlfatoTokens.gray),
-          ),
-        ],
-      ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value ?? '—',
+          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: value != null ? OlfatoTokens.plum : OlfatoTokens.gray),
+        ),
+      ],
     );
   }
 }
