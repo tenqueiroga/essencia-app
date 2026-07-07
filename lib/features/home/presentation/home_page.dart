@@ -311,6 +311,27 @@ class _WeatherCardState extends State<_WeatherCard> {
                         ],
                       ),
                       const SizedBox(height: 6),
+                    ] else ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.explore_outlined, color: OlfatoTokens.plum, size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Explorar',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: OlfatoTokens.ink,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Descubra perfumes para qualquer ocasião',
+                        style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
+                      ),
+                      const SizedBox(height: 4),
                     ],
                     if (city != null && state != null)
                       Row(
@@ -326,15 +347,17 @@ class _WeatherCardState extends State<_WeatherCard> {
                           ),
                         ],
                       ),
-                    const SizedBox(height: 8),
-                    Text(
-                      temp != null ? getWeatherFamily(temp) : 'Versátil',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: OlfatoTokens.plum,
+                    if (temp != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        getWeatherFamily(temp),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: OlfatoTokens.plum,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
