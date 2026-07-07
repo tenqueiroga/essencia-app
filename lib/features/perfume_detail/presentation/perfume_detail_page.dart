@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:share_plus/share_plus.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:js_util' as js_util;
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
@@ -184,11 +187,30 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
           ),
           IconButton(
             icon: const Icon(Icons.share_outlined, color: OlfatoTokens.gray, size: 22),
-            onPressed: () {
+            onPressed: () async {
               if (_perfume != null) {
                 final name = _perfume!['name'] as String? ?? '';
                 final brand = _perfume!['brand'] as String? ?? '';
-                Share.share('🧴 $name — $brand\n\nConfira no Olfato: https://essencia.laravel.cloud/app/perfume/${widget.perfumeId}');
+                final text = '🧴 $name — $brand\n\nConfira no Olfato: https://essencia.laravel.cloud/app/perfume/${widget.perfumeId}';
+
+                // Try Web Share API first
+                final navigator = html.window.navigator;
+                if (js_util.hasProperty(navigator, 'share')) {
+                  try {
+                    final shareData = js_util.newObject<Object>();
+                    js_util.setProperty(shareData, 'text', text);
+                    js_util.setProperty(shareData, 'title', '$name — $brand');
+                    await js_util.promiseToFuture(js_util.callMethod(navigator, 'share', [shareData]));
+                  } catch (_) {
+                    // User cancelled or error — fallback to clipboard
+                    await Clipboard.setData(ClipboardData(text: text));
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
+                  }
+                } else {
+                  // No Web Share API — copy to clipboard
+                  await Clipboard.setData(ClipboardData(text: text));
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
+                }
               }
             },
           ),

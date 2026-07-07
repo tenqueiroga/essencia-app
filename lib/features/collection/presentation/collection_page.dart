@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:share_plus/share_plus.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+import 'dart:js_util' as js_util;
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 
@@ -271,8 +274,23 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.share_outlined, color: OlfatoTokens.gray, size: 20),
-                onPressed: () {
-                  Share.share('🧴 Confira minha coleção de perfumes no Olfato!\nhttps://essencia.laravel.cloud/app/collection');
+                onPressed: () async {
+                  final text = '🧴 Confira minha coleção de perfumes no Olfato!\nhttps://essencia.laravel.cloud/app/collection';
+                  final navigator = html.window.navigator;
+                  if (js_util.hasProperty(navigator, 'share')) {
+                    try {
+                      final shareData = js_util.newObject<Object>();
+                      js_util.setProperty(shareData, 'text', text);
+                      js_util.setProperty(shareData, 'title', 'Minha Coleção — Olfato');
+                      await js_util.promiseToFuture(js_util.callMethod(navigator, 'share', [shareData]));
+                    } catch (_) {
+                      await Clipboard.setData(ClipboardData(text: text));
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
+                    }
+                  } else {
+                    await Clipboard.setData(ClipboardData(text: text));
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
+                  }
                 },
               ),
               _WishlistButton(onTap: () => context.push('/wishlist')),
