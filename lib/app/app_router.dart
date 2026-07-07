@@ -1,4 +1,6 @@
 import 'package:go_router/go_router.dart';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 import '../features/auth/presentation/login_page.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/collection/presentation/collection_page.dart';
@@ -17,14 +19,21 @@ import '../features/selection_builder/presentation/selection_builder_page.dart';
 import '../features/wishlist/presentation/wishlist_page.dart';
 import 'main_shell.dart';
 
+/// Determine initial location from the browser URL.
+/// If the URL contains a deep link (like /shared/), use it. Otherwise default to /login.
+String _getInitialLocation() {
+  try {
+    final path = Uri.parse(html.window.location.href).path;
+    // Strip the /app prefix from the path (base href)
+    final appPath = path.startsWith('/app') ? path.substring(4) : path;
+    if (appPath.startsWith('/shared/')) return appPath;
+    if (appPath.startsWith('/perfume/')) return appPath;
+  } catch (_) {}
+  return '/login';
+}
+
 final appRouter = GoRouter(
-  initialLocation: '/login',
-  redirect: (context, state) {
-    final path = state.uri.path;
-    // Allow shared collection page to load directly from URL
-    if (path.startsWith('/shared/')) return null;
-    return null;
-  },
+  initialLocation: _getInitialLocation(),
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingPage()),
