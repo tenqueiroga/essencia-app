@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/collection/presentation/collection_page.dart';
+import '../features/collection/presentation/shared_collection_page.dart';
 import '../features/explore/presentation/explore_page.dart';
 import '../features/scan/presentation/scan_page.dart';
 import '../features/scan/presentation/scan_result_page.dart';
@@ -47,6 +48,7 @@ final appRouter = GoRouter(
         ),
         GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
         GoRoute(path: '/collection', builder: (_, __) => const CollectionPage()),
+        GoRoute(path: '/shared/:token', builder: (_, state) => SharedCollectionPage(token: state.pathParameters['token']!)),
         GoRoute(path: '/wishlist', builder: (_, __) => const WishlistPage()),
         GoRoute(path: '/journal', builder: (_, __) => const JournalPage()),
         GoRoute(

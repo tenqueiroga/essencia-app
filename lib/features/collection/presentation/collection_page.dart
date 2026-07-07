@@ -275,32 +275,29 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
               IconButton(
                 icon: const Icon(Icons.share_outlined, color: OlfatoTokens.gray, size: 20),
                 onPressed: () async {
-                  // Build a text list of the collection perfumes
-                  final items = ref.read(collectionProvider).valueOrNull ?? [];
-                  if (items.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coleção vazia'), backgroundColor: OlfatoTokens.gray));
-                    return;
-                  }
-                  final perfumeLines = items.take(20).map((item) {
-                    final p = item['perfume'] as Map<String, dynamic>? ?? item;
-                    return '• ${p['name'] ?? ''} — ${p['brand'] ?? ''}';
-                  }).join('\n');
-                  final text = '🧴 Minha coleção no Olfato (${items.length} perfumes):\n\n$perfumeLines${items.length > 20 ? '\n... e mais ${items.length - 20}' : ''}\n\nDescubra a sua: https://essencia.laravel.cloud';
+                  try {
+                    // Get or generate share link
+                    final response = await ApiClient().dio.get('/collection/share-link');
+                    final url = response.data['url'] as String;
 
-                  final navigator = html.window.navigator;
-                  if (js_util.hasProperty(navigator, 'share')) {
-                    try {
-                      final shareData = js_util.newObject<Object>();
-                      js_util.setProperty(shareData, 'text', text);
-                      js_util.setProperty(shareData, 'title', 'Minha Coleção — Olfato');
-                      await js_util.promiseToFuture(js_util.callMethod(navigator, 'share', [shareData]));
-                    } catch (_) {
-                      await Clipboard.setData(ClipboardData(text: text));
-                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lista copiada! 📋'), backgroundColor: OlfatoTokens.plum));
+                    final navigator = html.window.navigator;
+                    if (js_util.hasProperty(navigator, 'share')) {
+                      try {
+                        final shareData = js_util.newObject<Object>();
+                        js_util.setProperty(shareData, 'text', '🧴 Confira minha coleção de perfumes!\n$url');
+                        js_util.setProperty(shareData, 'title', 'Minha Coleção — Olfato');
+                        js_util.setProperty(shareData, 'url', url);
+                        await js_util.promiseToFuture(js_util.callMethod(navigator, 'share', [shareData]));
+                      } catch (_) {
+                        await Clipboard.setData(ClipboardData(text: url));
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
+                      }
+                    } else {
+                      await Clipboard.setData(ClipboardData(text: url));
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
                     }
-                  } else {
-                    await Clipboard.setData(ClipboardData(text: text));
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lista copiada! 📋'), backgroundColor: OlfatoTokens.plum));
+                  } catch (_) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro ao gerar link'), backgroundColor: OlfatoTokens.error));
                   }
                 },
               ),
