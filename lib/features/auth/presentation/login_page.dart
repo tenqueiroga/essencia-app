@@ -14,8 +14,10 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLogin = true;
   String? _nameForRegister;
+  String? _passwordError;
 
   @override
   Widget build(BuildContext context) {
@@ -178,11 +180,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       TextField(
                         controller: _passwordController,
                         obscureText: true,
-                        decoration: const InputDecoration(
-                          hintText: 'Senha',
-                          prefixIcon: Icon(Icons.lock_outline, color: OlfatoTokens.gray),
+                        decoration: InputDecoration(
+                          hintText: _isLogin ? 'Senha' : 'Senha (mín. 8, letras e números)',
+                          prefixIcon: const Icon(Icons.lock_outline, color: OlfatoTokens.gray),
                         ),
                       ),
+
+                      // Confirm password (only on register)
+                      if (!_isLogin) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _confirmPasswordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Confirmar senha',
+                            prefixIcon: Icon(Icons.lock_outline, color: OlfatoTokens.gray),
+                          ),
+                        ),
+                      ],
+
+                      // Password validation error
+                      if (_passwordError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(_passwordError!, style: const TextStyle(color: OlfatoTokens.error, fontSize: 12)),
+                      ],
+
                       const SizedBox(height: 20),
 
                       // Submit button
@@ -246,7 +268,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ref.read(authProvider.notifier).loginWithEmail(email, password);
     } else {
       final name = _nameForRegister?.trim() ?? '';
-      if (name.isEmpty) return;
+      if (name.length < 2) {
+        setState(() => _passwordError = 'Nome deve ter pelo menos 2 caracteres.');
+        return;
+      }
+      if (password.length < 8) {
+        setState(() => _passwordError = 'Senha deve ter pelo menos 8 caracteres.');
+        return;
+      }
+      if (!RegExp(r'[a-zA-Z]').hasMatch(password) || !RegExp(r'[0-9]').hasMatch(password)) {
+        setState(() => _passwordError = 'Senha deve conter letras e números.');
+        return;
+      }
+      if (password != _confirmPasswordController.text) {
+        setState(() => _passwordError = 'Senhas não conferem.');
+        return;
+      }
+      setState(() => _passwordError = null);
       ref.read(authProvider.notifier).register(name, email, password);
     }
   }
@@ -263,6 +301,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 }
