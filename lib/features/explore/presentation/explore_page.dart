@@ -1085,6 +1085,17 @@ class _PerfumeCard extends StatelessWidget {
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 11),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if ((perfume['reviews_count'] as int? ?? 0) > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.play_circle_outline, size: 12, color: OlfatoTokens.pitanga),
+                            const SizedBox(width: 3),
+                            Text('Review disponível', style: TextStyle(fontSize: 10, color: OlfatoTokens.pitanga, fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),

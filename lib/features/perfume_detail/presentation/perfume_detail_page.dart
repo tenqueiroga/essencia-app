@@ -228,6 +228,9 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
           const SizedBox(height: 20),
           if (_hasPrice()) _PriceSection(perfume: _perfume!),
           const SizedBox(height: 28),
+          // Reviews section
+          if ((_perfume!['reviews'] as List?)?.isNotEmpty ?? false)
+            _ReviewsSection(reviews: _perfume!['reviews'] as List),
           if (_similares.isNotEmpty)
             _SimilaresSection(
               similares: _similares,
@@ -1106,6 +1109,96 @@ class _SobreTab extends StatelessWidget {
   }
 }
 
+
+// ─── ReviewsSection ───────────────────────────────────────────────────────────
+
+class _ReviewsSection extends StatelessWidget {
+  final List reviews;
+
+  const _ReviewsSection({required this.reviews});
+
+  String _typeLabel(String? type) {
+    return switch (type) {
+      'review' => '📝 Review',
+      'comparativo' => '⚖️ Comparativo',
+      'shorts' => '🎬 Shorts',
+      'unboxing' => '📦 Unboxing',
+      _ => '🎥 Vídeo',
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            'Reviews',
+            style: GoogleFonts.ebGaramond(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: OlfatoTokens.ink,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...reviews.map<Widget>((r) {
+          final title = r['title'] as String? ?? '';
+          final url = r['instagram_url'] as String? ?? '';
+          final type = r['type'] as String?;
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+            child: GestureDetector(
+              onTap: () async {
+                if (url.isNotEmpty) {
+                  final uri = Uri.tryParse(url);
+                  if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: OlfatoTokens.mist,
+                  borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+                  border: Border.all(color: OlfatoTokens.borderLight),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: OlfatoTokens.pitanga.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.play_circle_outline, color: OlfatoTokens.pitanga, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: OlfatoTokens.ink), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 2),
+                          Text(_typeLabel(type), style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray)),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.open_in_new, size: 16, color: OlfatoTokens.gray),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
 
 // ─── SimilaresSection ─────────────────────────────────────────────────────────
 
