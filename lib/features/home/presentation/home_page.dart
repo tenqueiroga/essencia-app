@@ -395,20 +395,16 @@ class _WeatherCardState extends State<_WeatherCard> {
         }
       },
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (imageUrl.isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                imageUrl,
-                height: 44,
-                width: 44,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(Icons.local_florist, color: OlfatoTokens.plum, size: 28),
-              ),
-            )
-          else
-            const Icon(Icons.local_florist, color: OlfatoTokens.plum, size: 28),
+          // Image — larger, no circle, subtle rounded rect
+          SizedBox(
+            height: 56,
+            width: 44,
+            child: imageUrl.isNotEmpty
+                ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(Icons.local_florist, color: OlfatoTokens.plum.withValues(alpha: 0.5), size: 28))
+                : Icon(Icons.local_florist, color: OlfatoTokens.plum.withValues(alpha: 0.5), size: 28),
+          ),
           const SizedBox(height: 6),
           Text(
             perfumeName,
@@ -417,7 +413,7 @@ class _WeatherCardState extends State<_WeatherCard> {
               fontWeight: FontWeight.w600,
               color: OlfatoTokens.ink,
             ),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
           ),
