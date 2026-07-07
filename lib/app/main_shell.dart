@@ -325,25 +325,32 @@ class _DesktopLayout extends StatelessWidget {
 }
 
 /// Brand logo widget with image fallback.
-/// Uses the ameixa (solid plum) horizontal logo for max legibility at sidebar sizes.
+/// Uses the colorida horizontal logo inside a container for clear rendering.
 class _BrandLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/olfato_logo_sidebar.png',
-      height: 56,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        return const Text(
-          'OLFATO',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2,
-            color: OlfatoTokens.plum,
-          ),
-        );
-      },
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Image.asset(
+        'assets/images/olfato_logo_horizontal.png',
+        height: 44,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return const Text(
+            'OLFATO',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2,
+              color: OlfatoTokens.plum,
+            ),
+          );
+        },
+      ),
     );
   }
 }

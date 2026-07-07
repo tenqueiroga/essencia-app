@@ -44,20 +44,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               children: [
                 // Olfato brand symbol
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(40),
+                  borderRadius: BorderRadius.circular(64),
                   child: Image.asset(
                     'assets/images/olfato_simbolo.png',
-                    width: 80,
-                    height: 80,
+                    width: 130,
+                    height: 130,
                     errorBuilder: (_, __, ___) => Container(
-                      width: 80,
-                      height: 80,
+                      width: 130,
+                      height: 130,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: OlfatoTokens.auraGradient,
                       ),
                       child: const Center(
-                        child: Text('O', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white)),
+                        child: Text('O', style: TextStyle(fontSize: 52, fontWeight: FontWeight.w900, color: Colors.white)),
                       ),
                     ),
                   ),
