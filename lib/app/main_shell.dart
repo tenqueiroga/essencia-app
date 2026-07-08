@@ -121,14 +121,7 @@ class _RegularTab extends StatelessWidget {
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: (tab['path'] == '/chat')
-                  ? Image.asset(
-                      'assets/images/olfato_simbolo.png',
-                      width: 20, height: 20,
-                      color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
-                      colorBlendMode: BlendMode.srcIn,
-                    )
-                  : Icon(
+              child: Icon(
                       (isActive ? tab['activeIcon'] : tab['icon']) as IconData,
                       color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
                       size: 20,
@@ -325,32 +318,25 @@ class _DesktopLayout extends StatelessWidget {
 }
 
 /// Brand logo widget with image fallback.
-/// Uses the colorida horizontal logo inside a container for clear rendering.
+/// Uses the colorida horizontal logo for clear rendering at sidebar size.
 class _BrandLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Image.asset(
-        'assets/images/olfato_logo_horizontal.png',
-        height: 44,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return const Text(
-            'OLFATO',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2,
-              color: OlfatoTokens.plum,
-            ),
-          );
-        },
-      ),
+    return Image.asset(
+      'assets/images/olfato_logo_horizontal.png',
+      height: 50,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return const Text(
+          'OLFATO',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 2,
+            color: OlfatoTokens.plum,
+          ),
+        );
+      },
     );
   }
 }
