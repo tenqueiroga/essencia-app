@@ -156,7 +156,7 @@ class _ChatPageState extends State<ChatPage> {
             decoration: const BoxDecoration(shape: BoxShape.circle, gradient: OlfatoTokens.auraGradient),
             child: Padding(
               padding: const EdgeInsets.all(4),
-              child: Image.asset('assets/images/olfato_simbolo.png', color: Colors.white, colorBlendMode: BlendMode.srcIn),
+              child: Image.asset('assets/images/aura_simbolo.png', color: Colors.white, colorBlendMode: BlendMode.srcIn),
             ),
           ),
           const SizedBox(width: 10),
@@ -224,7 +224,7 @@ class _ChatPageState extends State<ChatPage> {
         decoration: BoxDecoration(gradient: OlfatoTokens.auraGradient, borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard), boxShadow: [OlfatoTokens.cardShadow]),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Image.asset('assets/images/olfato_simbolo.png', width: 16, height: 16, color: Colors.white, colorBlendMode: BlendMode.srcIn),
+            Image.asset('assets/images/aura_simbolo.png', width: 16, height: 16, color: Colors.white, colorBlendMode: BlendMode.srcIn),
             const SizedBox(width: 6),
             Text('Sugestão do dia', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.9), letterSpacing: 1)),
           ]),
