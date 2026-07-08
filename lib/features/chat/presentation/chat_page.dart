@@ -152,10 +152,10 @@ class _ChatPageState extends State<ChatPage> {
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
+            width: 40, height: 40,
             decoration: const BoxDecoration(shape: BoxShape.circle, gradient: OlfatoTokens.auraGradient),
             child: Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
               child: Image.asset('assets/images/aura_simbolo.png', color: Colors.white, colorBlendMode: BlendMode.srcIn),
             ),
           ),

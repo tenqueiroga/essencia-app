@@ -122,7 +122,14 @@ class _RegularTab extends StatelessWidget {
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
+              child: (tab['path'] == '/chat')
+                  ? Image.asset(
+                      'assets/images/aura_simbolo.png',
+                      width: 20, height: 20,
+                      color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
+                      colorBlendMode: BlendMode.srcIn,
+                    )
+                  : Icon(
                       (isActive ? tab['activeIcon'] : tab['icon']) as IconData,
                       color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
                       size: 20,
@@ -271,19 +278,14 @@ class _DesktopLayout extends StatelessWidget {
                                 ),
                               )
                             else if (MainShell._tabs[i]['path'] == '/chat')
-                              Container(
-                                width: 24,
-                                height: 24,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: OlfatoTokens.auraGradient,
-                                ),
-                                padding: const EdgeInsets.all(4),
-                                child: Image.asset(
-                                  'assets/images/aura_simbolo.png',
-                                  color: Colors.white,
-                                  colorBlendMode: BlendMode.srcIn,
-                                ),
+                              Image.asset(
+                                'assets/images/aura_simbolo.png',
+                                width: 20,
+                                height: 20,
+                                color: isActive
+                                    ? OlfatoTokens.plum
+                                    : OlfatoTokens.gray,
+                                colorBlendMode: BlendMode.srcIn,
                               )
                             else
                               Icon(
