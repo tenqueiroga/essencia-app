@@ -144,10 +144,15 @@ class _ScanPageState extends State<ScanPage> {
       final base64Image = dataUrl.split(',').last;
 
       // Send to API — handle non-2xx as data, not exception
+      // Extended timeout for AI vision processing
       final response = await ApiClient().dio.post(
         '/perfumes/identify',
         data: {'image': base64Image},
-        options: Options(validateStatus: (status) => status != null && status < 500),
+        options: Options(
+          validateStatus: (status) => status != null && status < 500,
+          receiveTimeout: const Duration(seconds: 60),
+          sendTimeout: const Duration(seconds: 30),
+        ),
       );
       final data = response.data as Map<String, dynamic>;
 
@@ -162,7 +167,7 @@ class _ScanPageState extends State<ScanPage> {
       }
     } catch (e) {
       if (mounted) setState(() {
-        _error = 'Erro ao processar. Verifique sua conexão.';
+        _error = 'Não foi possível identificar. Tente novamente com uma foto mais nítida do frasco.';
         _isIdentifying = false;
         _showCapturedFrame = false;
       });
