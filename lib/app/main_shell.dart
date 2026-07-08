@@ -125,7 +125,7 @@ class _RegularTab extends StatelessWidget {
               child: (tab['path'] == '/chat')
                   ? Image.asset(
                       'assets/images/aura_simbolo.png',
-                      width: 20, height: 20,
+                      width: 24, height: 24,
                       color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
                       colorBlendMode: BlendMode.srcIn,
                     )
@@ -280,8 +280,8 @@ class _DesktopLayout extends StatelessWidget {
                             else if (MainShell._tabs[i]['path'] == '/chat')
                               Image.asset(
                                 'assets/images/aura_simbolo.png',
-                                width: 20,
-                                height: 20,
+                                width: 24,
+                                height: 24,
                                 color: isActive
                                     ? OlfatoTokens.plum
                                     : OlfatoTokens.gray,
