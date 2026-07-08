@@ -499,27 +499,119 @@ class _ScentSummary extends StatelessWidget {
     final description = perfume['description'] as String?;
     if (description == null || description.isEmpty) return const SizedBox.shrink();
 
-    // Clamp to 150 characters
-    final summary =
-        description.length > 150 ? '${description.substring(0, 147)}...' : description;
+    final isLong = description.length > 150;
+    final summary = isLong ? '${description.substring(0, 147)}...' : description;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: OlfatoTokens.mist,
-          borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
-          border: Border.all(color: OlfatoTokens.borderLight),
+      child: GestureDetector(
+        onTap: isLong
+            ? () => _showFullDescription(context, description)
+            : null,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: OlfatoTokens.mist,
+            borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
+            border: Border.all(color: OlfatoTokens.borderLight),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                summary,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  height: 1.5,
+                  color: OlfatoTokens.ink,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              if (isLong) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Ler mais',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: OlfatoTokens.plum,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-        child: Text(
-          summary,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.5,
-            color: OlfatoTokens.ink,
-            fontStyle: FontStyle.italic,
+      ),
+    );
+  }
+
+  void _showFullDescription(BuildContext context, String description) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: OlfatoTokens.vanilla,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: OlfatoTokens.borderLight,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'Sobre o perfume',
+                      style: GoogleFonts.ebGaramond(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: OlfatoTokens.ink,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: OlfatoTokens.gray, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: OlfatoTokens.borderLight),
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    description,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      height: 1.7,
+                      color: OlfatoTokens.ink,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
