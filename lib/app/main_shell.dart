@@ -326,6 +326,7 @@ class _BrandLogo extends StatelessWidget {
       'assets/images/olfato_logo_horizontal.png',
       height: 50,
       fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
       errorBuilder: (context, error, stackTrace) {
         return const Text(
           'OLFATO',
