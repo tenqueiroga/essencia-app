@@ -162,7 +162,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
             ),
           ),
           const SizedBox(height: 24),
-          Text('Bem-vindo ao Olfato', style: GoogleFonts.ebGaramond(fontSize: 28, fontWeight: FontWeight.w700, color: OlfatoTokens.ink), textAlign: TextAlign.center),
+          Text('Bem-vindo ao PerfumIA', style: GoogleFonts.ebGaramond(fontSize: 28, fontWeight: FontWeight.w700, color: OlfatoTokens.ink), textAlign: TextAlign.center),
           const SizedBox(height: 12),
           Text('Seu gosto, traduzido em perfume.', style: GoogleFonts.inter(fontSize: 15, color: OlfatoTokens.gray, fontStyle: FontStyle.italic), textAlign: TextAlign.center),
           const SizedBox(height: 32),

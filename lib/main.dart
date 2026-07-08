@@ -24,7 +24,7 @@ class PerfumeCollectionApp extends ConsumerWidget {
     final themeMode = ref.watch(themeProvider);
 
     return MaterialApp.router(
-      title: 'Olfato',
+      title: 'PerfumIA',
       debugShowCheckedModeBanner: false,
       theme: OlfatoTheme.lightTheme,
       darkTheme: OlfatoTheme.darkTheme,

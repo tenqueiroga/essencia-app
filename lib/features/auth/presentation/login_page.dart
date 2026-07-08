@@ -64,7 +64,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Olfato',
+                  'PerfumIA',
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                         color: OlfatoTokens.ink,
                         fontWeight: FontWeight.bold,

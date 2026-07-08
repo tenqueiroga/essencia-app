@@ -345,7 +345,7 @@ class _BrandLogo extends StatelessWidget {
       height: 50,
       fit: BoxFit.contain,
       placeholderBuilder: (context) => const Text(
-        'OLFATO',
+        'PERFUMIA',
         style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,
