@@ -397,15 +397,18 @@ class _WeatherCardState extends State<_WeatherCard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Image — larger, no circle, subtle rounded rect
-          SizedBox(
-            height: 56,
-            width: 44,
-            child: imageUrl.isNotEmpty
-                ? Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, __, ___) => Icon(Icons.local_florist, color: OlfatoTokens.plum.withValues(alpha: 0.5), size: 28))
-                : Icon(Icons.local_florist, color: OlfatoTokens.plum.withValues(alpha: 0.5), size: 28),
+          // Perfume image — larger with rounded corners, no white border
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              height: 72,
+              width: 72,
+              child: imageUrl.isNotEmpty
+                  ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.local_florist, color: OlfatoTokens.plum.withValues(alpha: 0.5), size: 32))
+                  : Icon(Icons.local_florist, color: OlfatoTokens.plum.withValues(alpha: 0.5), size: 32),
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             perfumeName,
             style: GoogleFonts.inter(
