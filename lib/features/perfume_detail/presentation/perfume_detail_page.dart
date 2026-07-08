@@ -496,7 +496,12 @@ class _ScentSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final description = perfume['description'] as String?;
+    // Prefer PT description, fallback to EN
+    final descriptionPt = perfume['description_pt'] as String?;
+    final descriptionEn = perfume['description'] as String?;
+    final description = (descriptionPt != null && descriptionPt.isNotEmpty)
+        ? descriptionPt
+        : descriptionEn;
     if (description == null || description.isEmpty) return const SizedBox.shrink();
 
     final isLong = description.length > 150;
