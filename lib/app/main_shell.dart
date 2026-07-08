@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'theme/olfato_tokens.dart';
 
@@ -318,26 +319,23 @@ class _DesktopLayout extends StatelessWidget {
 }
 
 /// Brand logo widget with image fallback.
-/// Uses the colorida horizontal logo for clear rendering at sidebar size.
+/// Uses SVG for crisp rendering at any size.
 class _BrandLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/olfato_logo_horizontal.png',
+    return SvgPicture.asset(
+      'assets/images/olfato_logo_horizontal.svg',
       height: 50,
       fit: BoxFit.contain,
-      filterQuality: FilterQuality.high,
-      errorBuilder: (context, error, stackTrace) {
-        return const Text(
-          'OLFATO',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2,
-            color: OlfatoTokens.plum,
-          ),
-        );
-      },
+      placeholderBuilder: (context) => const Text(
+        'OLFATO',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2,
+          color: OlfatoTokens.plum,
+        ),
+      ),
     );
   }
 }
