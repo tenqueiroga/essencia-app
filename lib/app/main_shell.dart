@@ -270,6 +270,21 @@ class _DesktopLayout extends StatelessWidget {
                                   size: 14,
                                 ),
                               )
+                            else if (MainShell._tabs[i]['path'] == '/chat')
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: OlfatoTokens.auraGradient,
+                                ),
+                                padding: const EdgeInsets.all(4),
+                                child: Image.asset(
+                                  'assets/images/aura_simbolo.png',
+                                  color: Colors.white,
+                                  colorBlendMode: BlendMode.srcIn,
+                                ),
+                              )
                             else
                               Icon(
                                 (isActive
