@@ -39,7 +39,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(32),
-            child: Column(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Olfato brand symbol
@@ -251,6 +253,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         ),
