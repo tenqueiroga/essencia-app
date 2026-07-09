@@ -179,8 +179,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
       ('🧴', 'Coleção', 'Organize perfumes, decants e amostras'),
       ('🤖', 'Aura IA', 'Assistente pessoal que conhece seu gosto'),
       ('📷', 'Scan', 'Identifique perfumes por foto'),
-      ('💰', 'Preços', 'Compare preços de 4 lojas brasileiras'),
+      ('💰', 'Preços & Dupes', 'Compare preços e descubra alternativas acessíveis'),
       ('📊', 'Comparador', 'Compare perfumes lado a lado com IA'),
+      ('🌤️', 'Sugestão do Dia', 'Recomendação diária baseada no clima'),
+      ('📔', 'Journal', 'Registre seu perfume do dia'),
+      ('💜', 'Wishlist', 'Salve perfumes que deseja comprar'),
     ];
 
     return Padding(
