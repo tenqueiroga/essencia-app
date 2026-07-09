@@ -450,10 +450,15 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             _filterSectionLabel('Marca', Icons.business_outlined),
             const SizedBox(height: 8),
             Autocomplete<String>(
-              optionsBuilder: (TextEditingValue value) {
-                if (value.text.isEmpty) return const Iterable<String>.empty();
-                final brands = (_exploreData?['brands'] as Map?)?.keys.toList() ?? [];
-                return brands.where((b) => b.toString().toLowerCase().contains(value.text.toLowerCase())).map((b) => b.toString()).take(8);
+              optionsBuilder: (TextEditingValue value) async {
+                if (value.text.length < 2) return const Iterable<String>.empty();
+                try {
+                  final response = await ApiClient().dio.get('/perfumes/brands', queryParameters: {'q': value.text});
+                  final List<dynamic> brands = response.data as List<dynamic>;
+                  return brands.map((b) => b.toString()).take(10);
+                } catch (_) {
+                  return const Iterable<String>.empty();
+                }
               },
               onSelected: (String selection) {
                 setState(() => _brandFilter = selection);
