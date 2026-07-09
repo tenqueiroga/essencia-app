@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../network/api_client.dart';
 import '../constants/api_constants.dart';
 
@@ -131,6 +132,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: 'Falha na autenticação. Tente novamente.',
       );
+    }
+  }
+
+  Future<void> loginWithGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        state = state.copyWith(isLoading: false);
+        return; // User cancelled
+      }
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        state = state.copyWith(isLoading: false, error: 'Não foi possível obter token do Google.');
+        return;
+      }
+      await loginWithToken(idToken);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: 'Erro ao conectar com Google. Tente novamente.');
     }
   }
 

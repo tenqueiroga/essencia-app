@@ -290,11 +290,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _signInWithGoogle() async {
-    // Google Sign-In will be configured later with API keys
-    ref.read(authProvider.notifier).loginWithEmail(
-      'test@example.com',
-      'password',
-    );
+    ref.read(authProvider.notifier).loginWithGoogle();
   }
 
   @override
