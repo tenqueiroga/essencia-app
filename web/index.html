@@ -49,5 +49,33 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Auto-reload on new deploy: checks build ID every 5 minutes
+    (function() {
+      var currentBuild = null;
+      async function checkBuild() {
+        try {
+          var res = await fetch('.last_build_id?t=' + Date.now());
+          var build = (await res.text()).trim();
+          if (!build) return;
+          if (currentBuild === null) {
+            currentBuild = build;
+          } else if (build !== currentBuild) {
+            // New build detected — unregister SW and reload
+            if (navigator.serviceWorker) {
+              var reg = await navigator.serviceWorker.getRegistration();
+              if (reg) await reg.unregister();
+            }
+            caches.keys().then(function(names) {
+              names.forEach(function(name) { caches.delete(name); });
+            });
+            window.location.reload(true);
+          }
+        } catch(e) {}
+      }
+      setTimeout(checkBuild, 5000);
+      setInterval(checkBuild, 3 * 60 * 1000);
+    })();
+  </script>
 </body>
 </html>
