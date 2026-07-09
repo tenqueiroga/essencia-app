@@ -3,7 +3,7 @@ class ApiConstants {
 
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://essencia.laravel.cloud/api',
+    defaultValue: 'https://perfumia.com.br/api',
   );
 
   // Auth

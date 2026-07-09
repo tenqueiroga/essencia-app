@@ -120,7 +120,7 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
   String _proxyUrl(String? url) {
     if (url == null || url.isEmpty) return '';
     if (url.contains('fimgs.net')) {
-      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+      return 'https://perfumia.com.br/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
     return url;
   }
@@ -191,7 +191,7 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
               if (_perfume != null) {
                 final name = _perfume!['name'] as String? ?? '';
                 final brand = _perfume!['brand'] as String? ?? '';
-                final text = '🧴 $name — $brand\n\nConfira no Olfato: https://essencia.laravel.cloud/app/perfume/${widget.perfumeId}';
+                final text = '🧴 $name — $brand\n\nConfira no Olfato: https://perfumia.com.br/app/perfume/${widget.perfumeId}';
 
                 // Try Web Share API first
                 final navigator = html.window.navigator;

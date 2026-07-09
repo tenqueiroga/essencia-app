@@ -406,7 +406,7 @@ class _ChatPageState extends State<ChatPage> {
             child: SizedBox(width: 44, height: 44, child: imageUrl != null && imageUrl.isNotEmpty
                 ? Image.network(
                     imageUrl.contains('fimgs.net')
-                        ? 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(imageUrl)}'
+                        ? 'https://perfumia.com.br/api/image-proxy?url=${Uri.encodeComponent(imageUrl)}'
                         : imageUrl,
                     fit: BoxFit.cover,
                     loadingBuilder: (_, child, p) => p == null ? child : _placeholder(),

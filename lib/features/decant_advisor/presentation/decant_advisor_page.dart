@@ -129,7 +129,7 @@ class _DecantAdvisorPageState extends State<DecantAdvisorPage> {
   String _proxyUrl(String? url) {
     if (url == null || url.isEmpty) return '';
     if (url.contains('fimgs.net')) {
-      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+      return 'https://perfumia.com.br/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
     return url;
   }

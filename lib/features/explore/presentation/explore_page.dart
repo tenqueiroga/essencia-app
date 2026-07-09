@@ -829,7 +829,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                 itemBuilder: (_, i) {
                   final p = perfumes[i];
                   final imageUrl = (p['image_url'] as String?)?.contains('fimgs.net') == true
-                    ? 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(p['image_url'])}'
+                    ? 'https://perfumia.com.br/api/image-proxy?url=${Uri.encodeComponent(p['image_url'])}'
                     : (p['image_url'] ?? '');
                   return GestureDetector(
                     onTap: () { Navigator.pop(ctx); context.push('/perfume/${p['id']}'); },
@@ -914,7 +914,7 @@ class _PerfumeCard extends StatelessWidget {
   String _proxyUrl(String? url) {
     if (url == null || url.isEmpty) return '';
     if (url.contains('fimgs.net')) {
-      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+      return 'https://perfumia.com.br/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
     return url;
   }
@@ -1043,7 +1043,7 @@ class _PerfumeDetailSheet extends StatelessWidget {
   String _proxyUrl(String? url) {
     if (url == null || url.isEmpty) return '';
     if (url.contains('fimgs.net')) {
-      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+      return 'https://perfumia.com.br/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
     return url;
   }
@@ -1430,7 +1430,7 @@ class _SimilarPerfumesPage extends StatelessWidget {
   String _proxyUrl(String? url) {
     if (url == null || url.isEmpty) return '';
     if (url.contains('fimgs.net')) {
-      return 'https://essencia.laravel.cloud/api/image-proxy?url=${Uri.encodeComponent(url)}';
+      return 'https://perfumia.com.br/api/image-proxy?url=${Uri.encodeComponent(url)}';
     }
     return url;
   }

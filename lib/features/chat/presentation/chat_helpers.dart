@@ -172,7 +172,7 @@ String removePerfumePatterns(String content) {
 String _resolveImageUrl(String perfumeId) {
   const baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'https://essencia.laravel.cloud/api',
+    defaultValue: 'https://perfumia.com.br/api',
   );
   return '$baseUrl/perfumes/$perfumeId/image';
 }
