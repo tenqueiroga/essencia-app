@@ -449,73 +449,9 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             // Marca
             _filterSectionLabel('Marca', Icons.business_outlined),
             const SizedBox(height: 8),
-            Autocomplete<String>(
-              optionsBuilder: (TextEditingValue value) async {
-                if (value.text.length < 2) return const Iterable<String>.empty();
-                try {
-                  final response = await ApiClient().dio.get('/perfumes/brands', queryParameters: {'q': value.text});
-                  final List<dynamic> brands = response.data as List<dynamic>;
-                  return brands.map((b) => b.toString()).take(10);
-                } catch (_) {
-                  return const Iterable<String>.empty();
-                }
-              },
-              onSelected: (String selection) {
-                setState(() => _brandFilter = selection);
-              },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: InputDecoration(
-                    hintText: 'Ex: Dior, Tom Ford...',
-                    hintStyle: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
-                    isDense: true,
-                    filled: true,
-                    fillColor: OlfatoTokens.mist,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                      borderSide: BorderSide(color: OlfatoTokens.borderLight),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                      borderSide: BorderSide(color: OlfatoTokens.plum),
-                    ),
-                  ),
-                  style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
-                  onChanged: (v) => _brandFilter = v,
-                );
-              },
-              optionsViewBuilder: (context, onSelected, options) {
-                return Align(
-                  alignment: Alignment.topLeft,
-                  child: Material(
-                    elevation: 4,
-                    borderRadius: BorderRadius.circular(8),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 200, maxWidth: 280),
-                      child: ListView.builder(
-                        padding: EdgeInsets.zero,
-                        shrinkWrap: true,
-                        itemCount: options.length,
-                        itemBuilder: (context, index) {
-                          final option = options.elementAt(index);
-                          return ListTile(
-                            dense: true,
-                            title: Text(option, style: GoogleFonts.inter(fontSize: 13)),
-                            onTap: () => onSelected(option),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                );
-              },
+            _BrandSearchField(
+              onSelected: (brand) => setState(() => _brandFilter = brand),
+              onChanged: (v) => _brandFilter = v,
             ),
             const SizedBox(height: 18),
 
@@ -2031,5 +1967,104 @@ class _ReviewsSectionState extends State<_ReviewsSection> {
         const SizedBox(height: 16),
       ],
     );
+  }
+}
+
+/// Brand search field with async suggestions from API.
+class _BrandSearchField extends StatefulWidget {
+  final ValueChanged<String> onSelected;
+  final ValueChanged<String> onChanged;
+
+  const _BrandSearchField({required this.onSelected, required this.onChanged});
+
+  @override
+  State<_BrandSearchField> createState() => _BrandSearchFieldState();
+}
+
+class _BrandSearchFieldState extends State<_BrandSearchField> {
+  final _controller = TextEditingController();
+  List<String> _suggestions = [];
+  bool _showSuggestions = false;
+
+  Future<void> _search(String query) async {
+    widget.onChanged(query);
+    if (query.length < 2) {
+      setState(() { _suggestions = []; _showSuggestions = false; });
+      return;
+    }
+    try {
+      final response = await ApiClient().dio.get('/perfumes/brands', queryParameters: {'q': query});
+      final List<dynamic> brands = response.data as List<dynamic>;
+      if (mounted) {
+        setState(() {
+          _suggestions = brands.map((b) => b.toString()).toList();
+          _showSuggestions = _suggestions.isNotEmpty;
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controller,
+          decoration: InputDecoration(
+            hintText: 'Ex: Dior, Tom Ford...',
+            hintStyle: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
+            isDense: true,
+            filled: true,
+            fillColor: OlfatoTokens.mist,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.plum)),
+            suffixIcon: _controller.text.isNotEmpty ? IconButton(
+              icon: const Icon(Icons.close, size: 16, color: OlfatoTokens.gray),
+              onPressed: () { _controller.clear(); widget.onChanged(''); setState(() { _suggestions = []; _showSuggestions = false; }); },
+            ) : null,
+          ),
+          style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
+          onChanged: _search,
+        ),
+        if (_showSuggestions)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            constraints: const BoxConstraints(maxHeight: 180),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: OlfatoTokens.borderLight),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4))],
+            ),
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              itemCount: _suggestions.length,
+              itemBuilder: (context, index) {
+                return InkWell(
+                  onTap: () {
+                    _controller.text = _suggestions[index];
+                    widget.onSelected(_suggestions[index]);
+                    setState(() => _showSuggestions = false);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Text(_suggestions[index], style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink)),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }
