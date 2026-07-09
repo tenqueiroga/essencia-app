@@ -74,9 +74,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               Row(children: [
                 Expanded(child: _StatCard(label: 'Perfumes', value: '${_stats?['total'] ?? 0}')),
                 const SizedBox(width: 10),
-                Expanded(child: _StatCard(label: 'Avaliados', value: '${_stats?['rated'] ?? 0}')),
+                Expanded(child: _StatCard(label: 'Decants', value: '${_stats?['decants'] ?? 0}')),
                 const SizedBox(width: 10),
-                Expanded(child: _StatCard(label: 'Nota Média', value: '${_stats?['average_rating'] ?? '-'}')),
+                Expanded(child: _StatCard(label: 'Amostras', value: '${_stats?['samples'] ?? 0}')),
               ]),
               const SizedBox(height: 20),
 
@@ -132,8 +132,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   _SettingsTile(icon: Icons.favorite_rounded, title: 'Minha Wishlist', onTap: () => context.push('/wishlist')),
                   const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.book_outlined, title: 'Diário Olfativo', onTap: () => context.go('/journal')),
-                  const Divider(color: OlfatoTokens.borderLight, height: 1),
-                  _SettingsTile(icon: Icons.download_outlined, title: 'Exportar Meus Dados', onTap: _exportData),
                   const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.delete_forever_outlined, title: 'Excluir Conta', titleColor: OlfatoTokens.error, onTap: _deleteAccount),
                   const Divider(color: OlfatoTokens.borderLight, height: 1),

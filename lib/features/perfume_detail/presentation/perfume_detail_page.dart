@@ -504,8 +504,8 @@ class _ScentSummary extends StatelessWidget {
         : descriptionEn;
     if (description == null || description.isEmpty) return const SizedBox.shrink();
 
-    final isLong = description.length > 150;
-    final summary = isLong ? '${description.substring(0, 147)}...' : description;
+    final isLong = description.length > 300;
+    final summary = isLong ? '${description.substring(0, 297)}...' : description;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1803,18 +1803,6 @@ class _DupesSection extends StatelessWidget {
                                   ),
                               ],
                             ),
-                            if (source.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                'Fonte: $source',
-                                style: GoogleFonts.inter(
-                                  fontSize: 9,
-                                  color: OlfatoTokens.gray,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
                           ],
                         ),
                       ),
