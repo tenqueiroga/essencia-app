@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../network/api_client.dart';
@@ -128,10 +129,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: response.data['user'],
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Falha na autenticação. Tente novamente.',
-      );
+      String msg = 'Falha na autenticação Google.';
+      if (e is DioException && e.response != null) {
+        final data = e.response?.data;
+        if (data is Map && data['error'] != null) {
+          msg = data['error']['message'] ?? msg;
+        }
+      }
+      state = state.copyWith(isLoading: false, error: msg);
     }
   }
 
@@ -148,14 +153,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return; // User cancelled
       }
       final auth = await account.authentication;
-      final accessToken = auth.accessToken;
-      if (accessToken == null) {
-        state = state.copyWith(isLoading: false, error: 'Não foi possível obter token do Google.');
+      final token = auth.accessToken ?? auth.idToken;
+      if (token == null) {
+        state = state.copyWith(isLoading: false, error: 'Token Google indisponível.');
         return;
       }
-      await loginWithToken(accessToken);
+      await loginWithToken(token);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Erro ao conectar com Google. Tente novamente.');
+      state = state.copyWith(isLoading: false, error: 'Erro Google: ${e.toString().substring(0, e.toString().length.clamp(0, 100))}');
     }
   }
 
