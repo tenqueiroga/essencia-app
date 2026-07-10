@@ -191,7 +191,7 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
               if (_perfume != null) {
                 final name = _perfume!['name'] as String? ?? '';
                 final brand = _perfume!['brand'] as String? ?? '';
-                final text = '🧴 $name — $brand\n\nConfira no Olfato: https://perfumia.com.br/app/perfume/${widget.perfumeId}';
+                final text = '🧴 $name — $brand\n\nConfira no PerfumIA: https://perfumia.com.br/app/perfume/${widget.perfumeId}';
 
                 // Try Web Share API first
                 final navigator = html.window.navigator;

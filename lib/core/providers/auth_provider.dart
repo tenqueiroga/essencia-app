@@ -129,12 +129,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: response.data['user'],
       );
     } catch (e) {
-      String msg = 'Falha na autenticação Google.';
-      if (e is DioException && e.response != null) {
-        final data = e.response?.data;
-        if (data is Map && data['error'] != null) {
-          msg = data['error']['message'] ?? msg;
-        }
+      String msg = 'Falha auth.';
+      if (e is DioException) {
+        msg = 'Dio ${e.type.name}: ${e.response?.statusCode ?? "no status"} ${e.response?.data?.toString().substring(0, (e.response?.data?.toString().length ?? 0).clamp(0, 120)) ?? e.message ?? ""}';
+      } else {
+        msg = '${e.runtimeType}: ${e.toString().substring(0, e.toString().length.clamp(0, 100))}';
       }
       state = state.copyWith(isLoading: false, error: msg);
     }
