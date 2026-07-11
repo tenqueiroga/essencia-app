@@ -655,7 +655,7 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
 
     return Column(
       children: [
-        // Tab bar — emoji + text on active
+        // Tab bar — icon + text on active (same pattern as bottom nav)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
           height: 44,
@@ -667,12 +667,12 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
           child: Row(
             children: List.generate(4, (index) {
               final isActive = activeIndex == index;
-              final emoji = switch (index) {
-                0 => '🌸',
-                1 => '📊',
-                2 => 'ℹ️',
-                3 => '📝',
-                _ => '',
+              final icon = switch (index) {
+                0 => isActive ? Icons.local_florist : Icons.local_florist_outlined,
+                1 => isActive ? Icons.equalizer : Icons.equalizer_outlined,
+                2 => isActive ? Icons.info : Icons.info_outline,
+                3 => isActive ? Icons.rate_review : Icons.rate_review_outlined,
+                _ => Icons.circle,
               };
               final label = switch (index) {
                 0 => 'Notas',
@@ -698,7 +698,11 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(emoji, style: TextStyle(fontSize: isActive ? 14 : 16)),
+                        Icon(
+                          icon,
+                          size: 18,
+                          color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
+                        ),
                         if (isActive) ...[
                           const SizedBox(width: 4),
                           Text(
@@ -1729,68 +1733,62 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   }
 
   Widget _notesInput(String label, TextEditingController controller, List<String> notes, ValueChanged<List<String>> onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Notas de $label',
-          style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
-        ),
-        const SizedBox(height: 4),
-        if (notes.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: notes.map((note) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: OlfatoTokens.plum.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      note,
-                      style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum),
-                    ),
-                    const SizedBox(width: 4),
-                    GestureDetector(
-                      onTap: () {
-                        final updated = List<String>.from(notes)..remove(note);
-                        onChanged(updated);
-                      },
-                      child: Icon(Icons.close, size: 12, color: OlfatoTokens.plum.withValues(alpha: 0.6)),
-                    ),
-                  ],
-                ),
-              )).toList(),
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        // Filter suggestions based on current text
+        final query = controller.text.toLowerCase();
+        final suggestions = query.length >= 2
+            ? _allKnownNotes
+                .where((n) => n.toLowerCase().contains(query) && !notes.contains(n))
+                .take(5)
+                .toList()
+            : <String>[];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Notas de $label',
+              style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
             ),
-          ),
-        Autocomplete<String>(
-          optionsBuilder: (textEditingValue) {
-            if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
-            final query = textEditingValue.text.toLowerCase();
-            return _allKnownNotes.where((n) =>
-                n.toLowerCase().contains(query) && !notes.contains(n));
-          },
-          onSelected: (selected) {
-            final updated = List<String>.from(notes)..add(selected);
-            onChanged(updated);
-            controller.clear();
-          },
-          fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
-            // Sync with our external controller
-            textController.addListener(() {
-              controller.text = textController.text;
-            });
-            return TextField(
-              controller: textController,
-              focusNode: focusNode,
+            const SizedBox(height: 4),
+            if (notes.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: notes.map((note) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: OlfatoTokens.plum.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          note,
+                          style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () {
+                            final updated = List<String>.from(notes)..remove(note);
+                            onChanged(updated);
+                          },
+                          child: Icon(Icons.close, size: 12, color: OlfatoTokens.plum.withValues(alpha: 0.6)),
+                        ),
+                      ],
+                    ),
+                  )).toList(),
+                ),
+              ),
+            TextField(
+              controller: controller,
               style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
+              onChanged: (_) => setLocalState(() {}),
               decoration: InputDecoration(
                 hintText: 'Adicionar nota...',
                 hintStyle: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
@@ -1813,11 +1811,12 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
                   onPressed: () {
-                    final text = textController.text.trim();
+                    final text = controller.text.trim();
                     if (text.isNotEmpty) {
                       final updated = List<String>.from(notes)..add(text);
                       onChanged(updated);
-                      textController.clear();
+                      controller.clear();
+                      setLocalState(() {});
                     }
                   },
                 ),
@@ -1826,38 +1825,43 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
                 if (text.trim().isNotEmpty) {
                   final updated = List<String>.from(notes)..add(text.trim());
                   onChanged(updated);
-                  textController.clear();
+                  controller.clear();
+                  setLocalState(() {});
                 }
               },
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(8),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 150, maxWidth: 250),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
-                    itemCount: options.length,
-                    itemBuilder: (context, index) {
-                      final opt = options.elementAt(index);
-                      return ListTile(
-                        dense: true,
-                        title: Text(opt, style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink)),
-                        onTap: () => onSelected(opt),
-                      );
+            ),
+            // Inline suggestions
+            if (suggestions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: suggestions.map((s) => GestureDetector(
+                    onTap: () {
+                      final updated = List<String>.from(notes)..add(s);
+                      onChanged(updated);
+                      controller.clear();
+                      setLocalState(() {});
                     },
-                  ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        s,
+                        style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum),
+                      ),
+                    ),
+                  )).toList(),
                 ),
               ),
-            );
-          },
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
