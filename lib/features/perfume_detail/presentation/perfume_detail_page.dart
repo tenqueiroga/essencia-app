@@ -675,13 +675,10 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
         const SizedBox(height: 16),
 
         // Render active tab content inline
-        switch (activeIndex) {
-          0 => _NotasTab(perfume: widget.perfume),
-          1 => _PerformanceTab(perfume: widget.perfume),
-          2 => _SobreTab(perfume: widget.perfume),
-          3 => _MinhaAvaliacaoTab(perfumeId: widget.perfume['id'] as String, perfume: widget.perfume),
-          _ => const SizedBox.shrink(),
-        },
+        if (activeIndex == 0) _NotasTab(perfume: widget.perfume),
+        if (activeIndex == 1) _PerformanceTab(perfume: widget.perfume),
+        if (activeIndex == 2) _SobreTab(perfume: widget.perfume),
+        if (activeIndex == 3) _MinhaAvaliacaoTab(key: ValueKey('review_${widget.perfume['id']}'), perfumeId: widget.perfume['id'] as String, perfume: widget.perfume),
       ],
     );
   }
@@ -1232,7 +1229,7 @@ class _MinhaAvaliacaoTab extends StatefulWidget {
   final String perfumeId;
   final Map<String, dynamic> perfume;
 
-  const _MinhaAvaliacaoTab({required this.perfumeId, required this.perfume});
+  const _MinhaAvaliacaoTab({super.key, required this.perfumeId, required this.perfume});
 
   @override
   State<_MinhaAvaliacaoTab> createState() => _MinhaAvaliacaoTabState();
@@ -1459,17 +1456,26 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
           // ─── Notas percebidas ───
           _sectionLabel('Notas que percebo'),
           const SizedBox(height: 12),
-          _notesInput('Topo', _personalTopNotes, (notes) {
-            setState(() => _personalTopNotes = notes);
-          }),
+          _NotesInputField(
+            key: ValueKey('top_${_personalTopNotes.length}'),
+            label: 'Topo',
+            notes: _personalTopNotes,
+            onChanged: (notes) => setState(() => _personalTopNotes = notes),
+          ),
           const SizedBox(height: 10),
-          _notesInput('Coração', _personalHeartNotes, (notes) {
-            setState(() => _personalHeartNotes = notes);
-          }),
+          _NotesInputField(
+            key: ValueKey('heart_${_personalHeartNotes.length}'),
+            label: 'Coração',
+            notes: _personalHeartNotes,
+            onChanged: (notes) => setState(() => _personalHeartNotes = notes),
+          ),
           const SizedBox(height: 10),
-          _notesInput('Base', _personalBaseNotes, (notes) {
-            setState(() => _personalBaseNotes = notes);
-          }),
+          _NotesInputField(
+            key: ValueKey('base_${_personalBaseNotes.length}'),
+            label: 'Base',
+            notes: _personalBaseNotes,
+            onChanged: (notes) => setState(() => _personalBaseNotes = notes),
+          ),
           const SizedBox(height: 24),
 
           // ─── Texto livre ───
@@ -1666,8 +1672,9 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
     );
   }
 
-  Widget _notesInput(String label, List<String> notes, ValueChanged<List<String>> onChanged) {
+  Widget _notesInput(String label, List<String> notes, ValueChanged<List<String>> onChanged, {Key? key}) {
     return _NotesInputField(
+      key: key,
       label: label,
       notes: notes,
       onChanged: onChanged,
@@ -1684,6 +1691,7 @@ class _NotesInputField extends StatefulWidget {
   final ValueChanged<List<String>> onChanged;
 
   const _NotesInputField({
+    super.key,
     required this.label,
     required this.notes,
     required this.onChanged,
