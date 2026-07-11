@@ -655,31 +655,20 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
 
     return Column(
       children: [
-        // Tab bar — 2×2 segmented grid
+        // Tab bar — single row, 4 equal tabs
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
             color: OlfatoTokens.mist,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
           ),
-          padding: const EdgeInsets.all(4),
-          child: Column(
+          padding: const EdgeInsets.all(3),
+          child: Row(
             children: [
-              Row(
-                children: [
-                  _buildTab(0, 'Notas', activeIndex),
-                  const SizedBox(width: 4),
-                  _buildTab(1, 'Performance', activeIndex),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  _buildTab(2, 'Sobre', activeIndex),
-                  const SizedBox(width: 4),
-                  _buildTab(3, 'Minha Avaliação', activeIndex),
-                ],
-              ),
+              _buildTab(0, 'Notas', activeIndex),
+              _buildTab(1, 'Perf.', activeIndex),
+              _buildTab(2, 'Sobre', activeIndex),
+              _buildTab(3, 'Avaliar', activeIndex),
             ],
           ),
         ),
@@ -710,7 +699,7 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isActive ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
             boxShadow: isActive ? [OlfatoTokens.cardShadow] : [],
           ),
           child: Center(
@@ -1271,7 +1260,7 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   int? _finalScore;
 
   // Autocomplete suggestions from perfume data
-  List<String> _allKnownNotes = [];
+  
 
   final _reviewTextController = TextEditingController();
   final _priceController = TextEditingController();
@@ -1279,35 +1268,7 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   @override
   void initState() {
     super.initState();
-    _loadAllNotes();
     _loadReview();
-  }
-
-  Future<void> _loadAllNotes() async {
-    try {
-      final response = await ApiClient().dio.get('/perfumes/notes');
-      final data = response.data;
-      if (data is List && mounted) {
-        setState(() {
-          _allKnownNotes = data.cast<String>();
-        });
-      }
-    } catch (_) {
-      // Fallback to perfume's own notes
-      _buildKnownNotesFromPerfume();
-    }
-  }
-
-  void _buildKnownNotesFromPerfume() {
-    final Set<String> notes = {};
-    for (final key in ['top_notes', 'heart_notes', 'base_notes']) {
-      final list = widget.perfume[key] as List? ?? [];
-      for (final note in list) {
-        final name = note is String ? note : (note as Map?)?['name'] as String? ?? '';
-        if (name.isNotEmpty) notes.add(name);
-      }
-    }
-    _allKnownNotes = notes.toList()..sort();
   }
 
   @override
@@ -1719,7 +1680,6 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
     return _NotesInputField(
       label: label,
       notes: notes,
-      allKnownNotes: _allKnownNotes,
       onChanged: onChanged,
     );
   }
@@ -1731,13 +1691,11 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
 class _NotesInputField extends StatefulWidget {
   final String label;
   final List<String> notes;
-  final List<String> allKnownNotes;
   final ValueChanged<List<String>> onChanged;
 
   const _NotesInputField({
     required this.label,
     required this.notes,
-    required this.allKnownNotes,
     required this.onChanged,
   });
 
@@ -1750,20 +1708,25 @@ class _NotesInputFieldState extends State<_NotesInputField> {
   List<String> _suggestions = [];
   bool _showSuggestions = false;
 
-  void _search(String query) {
+  Future<void> _search(String query) async {
     if (query.length < 2) {
       setState(() { _suggestions = []; _showSuggestions = false; });
       return;
     }
-    final q = query.toLowerCase();
-    final results = widget.allKnownNotes
-        .where((n) => n.toLowerCase().contains(q) && !widget.notes.contains(n))
-        .take(6)
-        .toList();
-    setState(() {
-      _suggestions = results;
-      _showSuggestions = results.isNotEmpty;
-    });
+    try {
+      final response = await ApiClient().dio.get('/perfumes/notes', queryParameters: {'q': query});
+      final List<dynamic> results = response.data as List<dynamic>;
+      if (mounted) {
+        final filtered = results
+            .map((n) => n.toString())
+            .where((n) => !widget.notes.contains(n))
+            .toList();
+        setState(() {
+          _suggestions = filtered;
+          _showSuggestions = filtered.isNotEmpty;
+        });
+      }
+    } catch (_) {}
   }
 
   void _addNote(String text) {
