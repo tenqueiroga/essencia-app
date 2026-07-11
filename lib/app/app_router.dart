@@ -9,6 +9,7 @@ import '../features/scan/presentation/scan_page.dart';
 import '../features/scan/presentation/scan_result_page.dart';
 import '../features/chat/presentation/chat_page.dart';
 import '../features/profile/presentation/profile_page.dart';
+import '../features/profile/presentation/reviews_page.dart';
 import '../features/journal/presentation/journal_page.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/perfume_detail/presentation/perfume_detail_page.dart';
@@ -55,6 +56,7 @@ final appRouter = GoRouter(
           },
         ),
         GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
+        GoRoute(path: '/reviews', builder: (_, __) => const ReviewsPage()),
         GoRoute(path: '/collection', builder: (_, __) => const CollectionPage()),
         GoRoute(path: '/wishlist', builder: (_, __) => const WishlistPage()),
         GoRoute(path: '/journal', builder: (_, __) => const JournalPage()),
@@ -62,7 +64,8 @@ final appRouter = GoRouter(
           path: '/perfume/:id',
           builder: (_, state) {
             final id = state.pathParameters['id']!;
-            return PerfumeDetailPage(perfumeId: id);
+            final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '') ?? 0;
+            return PerfumeDetailPage(perfumeId: id, initialTab: tab);
           },
         ),
         GoRoute(

@@ -131,6 +131,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.favorite_rounded, title: 'Minha Wishlist', onTap: () => context.push('/wishlist')),
                   const Divider(color: OlfatoTokens.borderLight, height: 1),
+                  _SettingsTile(icon: Icons.star_rounded, title: 'Minhas Avaliações', onTap: () => context.push('/reviews')),
+                  const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.book_outlined, title: 'Diário Olfativo', onTap: () => context.go('/journal')),
                   const Divider(color: OlfatoTokens.borderLight, height: 1),
                   _SettingsTile(icon: Icons.delete_forever_outlined, title: 'Excluir Conta', titleColor: OlfatoTokens.error, onTap: _deleteAccount),

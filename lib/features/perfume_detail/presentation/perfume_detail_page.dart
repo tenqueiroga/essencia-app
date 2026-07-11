@@ -36,8 +36,9 @@ List<T> boundSimilares<T>(List<T> similares) {
 /// similar perfumes section, and "Conversar com Aura" CTA.
 class PerfumeDetailPage extends ConsumerStatefulWidget {
   final String perfumeId;
+  final int initialTab;
 
-  const PerfumeDetailPage({super.key, required this.perfumeId});
+  const PerfumeDetailPage({super.key, required this.perfumeId, this.initialTab = 0});
 
   @override
   ConsumerState<PerfumeDetailPage> createState() => _PerfumeDetailPageState();
@@ -55,7 +56,7 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTab);
     _loadData();
   }
 
