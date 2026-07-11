@@ -655,71 +655,42 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
 
     return Column(
       children: [
-        // Tab bar — icon + text on active (same pattern as bottom nav)
+        // Tab bar — scrollable text tabs (pill style)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
-          height: 44,
           decoration: BoxDecoration(
             color: OlfatoTokens.mist,
             borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
           ),
-          padding: const EdgeInsets.all(3),
-          child: Row(
-            children: List.generate(4, (index) {
-              final isActive = activeIndex == index;
-              final icon = switch (index) {
-                0 => isActive ? Icons.local_florist : Icons.local_florist_outlined,
-                1 => isActive ? Icons.show_chart : Icons.show_chart,
-                2 => isActive ? Icons.info : Icons.info_outline,
-                3 => isActive ? Icons.star : Icons.star_outline,
-                _ => Icons.circle,
-              };
-              final label = switch (index) {
-                0 => 'Notas',
-                1 => 'Perf.',
-                2 => 'Sobre',
-                3 => 'Avaliar',
-                _ => '',
-              };
-
-              return Expanded(
-                flex: isActive ? 3 : 2,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.tabController.animateTo(index),
-                  child: Container(
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: isActive ? Colors.white : Colors.transparent,
-                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                      boxShadow: isActive ? [OlfatoTokens.cardShadow] : [],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          icon,
-                          size: 18,
-                          color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
-                        ),
-                        if (isActive) ...[
-                          const SizedBox(width: 4),
-                          Text(
-                            label,
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: OlfatoTokens.ink,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
+          child: TabBar(
+            controller: widget.tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: OlfatoTokens.ink,
+            unselectedLabelColor: OlfatoTokens.gray,
+            labelStyle: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+            indicator: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+              boxShadow: [OlfatoTokens.cardShadow],
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent,
+            padding: const EdgeInsets.all(3),
+            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+            tabs: const [
+              Tab(text: 'Notas'),
+              Tab(text: 'Performance'),
+              Tab(text: 'Sobre'),
+              Tab(text: 'Avaliação'),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -1300,8 +1271,8 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   Future<void> _loadAllNotes() async {
     try {
       final response = await ApiClient().dio.get('/perfumes/notes');
-      final data = response.data as List;
-      if (mounted) {
+      final data = response.data;
+      if (data is List && mounted) {
         setState(() {
           _allKnownNotes = data.cast<String>();
         });
@@ -1733,126 +1704,155 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   }
 
   Widget _notesInput(String label, TextEditingController controller, List<String> notes, ValueChanged<List<String>> onChanged) {
-    return StatefulBuilder(
-      builder: (context, setLocalState) {
-        final query = controller.text.toLowerCase();
-        final suggestions = query.length >= 2
-            ? _allKnownNotes
-                .where((n) => n.toLowerCase().contains(query) && !notes.contains(n))
-                .take(6)
-                .toList()
-            : <String>[];
-        final showSuggestions = suggestions.isNotEmpty;
+    return _NotesInputField(
+      label: label,
+      controller: controller,
+      notes: notes,
+      allKnownNotes: _allKnownNotes,
+      onChanged: onChanged,
+    );
+  }
+}
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Notas de $label',
-              style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
-            ),
-            const SizedBox(height: 4),
-            if (notes.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: notes.map((note) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: OlfatoTokens.plum.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(note, style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum)),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: () {
-                            final updated = List<String>.from(notes)..remove(note);
-                            onChanged(updated);
-                          },
-                          child: Icon(Icons.close, size: 12, color: OlfatoTokens.plum.withValues(alpha: 0.6)),
-                        ),
-                      ],
-                    ),
-                  )).toList(),
+
+// ─── NotesInputField ──────────────────────────────────────────────────────────
+
+class _NotesInputField extends StatefulWidget {
+  final String label;
+  final TextEditingController controller;
+  final List<String> notes;
+  final List<String> allKnownNotes;
+  final ValueChanged<List<String>> onChanged;
+
+  const _NotesInputField({
+    required this.label,
+    required this.controller,
+    required this.notes,
+    required this.allKnownNotes,
+    required this.onChanged,
+  });
+
+  @override
+  State<_NotesInputField> createState() => _NotesInputFieldState();
+}
+
+class _NotesInputFieldState extends State<_NotesInputField> {
+  List<String> _suggestions = [];
+  bool _showSuggestions = false;
+
+  void _onChanged(String query) {
+    if (query.length < 2) {
+      setState(() { _suggestions = []; _showSuggestions = false; });
+      return;
+    }
+    final q = query.toLowerCase();
+    final results = widget.allKnownNotes
+        .where((n) => n.toLowerCase().contains(q) && !widget.notes.contains(n))
+        .take(6)
+        .toList();
+    setState(() {
+      _suggestions = results;
+      _showSuggestions = results.isNotEmpty;
+    });
+  }
+
+  void _addNote(String text) {
+    if (text.trim().isEmpty) return;
+    final updated = List<String>.from(widget.notes)..add(text.trim());
+    widget.onChanged(updated);
+    widget.controller.clear();
+    setState(() { _suggestions = []; _showSuggestions = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Notas de ${widget.label}',
+          style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
+        ),
+        const SizedBox(height: 4),
+        if (widget.notes.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: widget.notes.map((note) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: OlfatoTokens.plum.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.3)),
                 ),
-              ),
-            TextField(
-              controller: controller,
-              style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
-              onChanged: (_) => setLocalState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Adicionar nota...',
-                hintStyle: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
-                isDense: true,
-                filled: true,
-                fillColor: OlfatoTokens.mist,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide.none),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.plum)),
-                suffixIcon: controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
-                        onPressed: () {
-                          final text = controller.text.trim();
-                          if (text.isNotEmpty) {
-                            final updated = List<String>.from(notes)..add(text);
-                            onChanged(updated);
-                            controller.clear();
-                            setLocalState(() {});
-                          }
-                        },
-                      )
-                    : null,
-              ),
-              onSubmitted: (text) {
-                if (text.trim().isNotEmpty) {
-                  final updated = List<String>.from(notes)..add(text.trim());
-                  onChanged(updated);
-                  controller.clear();
-                  setLocalState(() {});
-                }
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(note, style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum)),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () {
+                        final updated = List<String>.from(widget.notes)..remove(note);
+                        widget.onChanged(updated);
+                      },
+                      child: Icon(Icons.close, size: 12, color: OlfatoTokens.plum.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
+        TextField(
+          controller: widget.controller,
+          style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
+          onChanged: _onChanged,
+          decoration: InputDecoration(
+            hintText: 'Adicionar nota...',
+            hintStyle: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
+            isDense: true,
+            filled: true,
+            fillColor: OlfatoTokens.mist,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.plum)),
+            suffixIcon: widget.controller.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
+                    onPressed: () => _addNote(widget.controller.text),
+                  )
+                : null,
+          ),
+          onSubmitted: _addNote,
+        ),
+        if (_showSuggestions)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            constraints: const BoxConstraints(maxHeight: 180),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: OlfatoTokens.borderLight),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4))],
+            ),
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              itemCount: _suggestions.length,
+              itemBuilder: (context, index) {
+                return InkWell(
+                  onTap: () => _addNote(_suggestions[index]),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Text(_suggestions[index], style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink)),
+                  ),
+                );
               },
             ),
-            if (showSuggestions)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                constraints: const BoxConstraints(maxHeight: 180),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: OlfatoTokens.borderLight),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4))],
-                ),
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  itemCount: suggestions.length,
-                  itemBuilder: (context, index) {
-                    return InkWell(
-                      onTap: () {
-                        final updated = List<String>.from(notes)..add(suggestions[index]);
-                        onChanged(updated);
-                        controller.clear();
-                        setLocalState(() {});
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        child: Text(suggestions[index], style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink)),
-                      ),
-                    );
-                  },
-                ),
-              ),
-          ],
-        );
-      },
+          ),
+      ],
     );
   }
 }
