@@ -669,9 +669,9 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
               final isActive = activeIndex == index;
               final icon = switch (index) {
                 0 => isActive ? Icons.local_florist : Icons.local_florist_outlined,
-                1 => isActive ? Icons.equalizer : Icons.equalizer_outlined,
+                1 => isActive ? Icons.show_chart : Icons.show_chart,
                 2 => isActive ? Icons.info : Icons.info_outline,
-                3 => isActive ? Icons.rate_review : Icons.rate_review_outlined,
+                3 => isActive ? Icons.star : Icons.star_outline,
                 _ => Icons.circle,
               };
               final label = switch (index) {
@@ -1735,14 +1735,14 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   Widget _notesInput(String label, TextEditingController controller, List<String> notes, ValueChanged<List<String>> onChanged) {
     return StatefulBuilder(
       builder: (context, setLocalState) {
-        // Filter suggestions based on current text
         final query = controller.text.toLowerCase();
         final suggestions = query.length >= 2
             ? _allKnownNotes
                 .where((n) => n.toLowerCase().contains(query) && !notes.contains(n))
-                .take(5)
+                .take(6)
                 .toList()
             : <String>[];
+        final showSuggestions = suggestions.isNotEmpty;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1768,10 +1768,7 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          note,
-                          style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum),
-                        ),
+                        Text(note, style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum)),
                         const SizedBox(width: 4),
                         GestureDetector(
                           onTap: () {
@@ -1794,32 +1791,25 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
                 hintStyle: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
                 isDense: true,
                 filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: OlfatoTokens.borderLight),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: OlfatoTokens.borderLight),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: OlfatoTokens.plum),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
-                  onPressed: () {
-                    final text = controller.text.trim();
-                    if (text.isNotEmpty) {
-                      final updated = List<String>.from(notes)..add(text);
-                      onChanged(updated);
-                      controller.clear();
-                      setLocalState(() {});
-                    }
-                  },
-                ),
+                fillColor: OlfatoTokens.mist,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide.none),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.plum)),
+                suffixIcon: controller.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
+                        onPressed: () {
+                          final text = controller.text.trim();
+                          if (text.isNotEmpty) {
+                            final updated = List<String>.from(notes)..add(text);
+                            onChanged(updated);
+                            controller.clear();
+                            setLocalState(() {});
+                          }
+                        },
+                      )
+                    : null,
               ),
               onSubmitted: (text) {
                 if (text.trim().isNotEmpty) {
@@ -1830,33 +1820,34 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
                 }
               },
             ),
-            // Inline suggestions
-            if (suggestions.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: suggestions.map((s) => GestureDetector(
-                    onTap: () {
-                      final updated = List<String>.from(notes)..add(s);
-                      onChanged(updated);
-                      controller.clear();
-                      setLocalState(() {});
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.4)),
+            if (showSuggestions)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                constraints: const BoxConstraints(maxHeight: 180),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: OlfatoTokens.borderLight),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 4))],
+                ),
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: suggestions.length,
+                  itemBuilder: (context, index) {
+                    return InkWell(
+                      onTap: () {
+                        final updated = List<String>.from(notes)..add(suggestions[index]);
+                        onChanged(updated);
+                        controller.clear();
+                        setLocalState(() {});
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        child: Text(suggestions[index], style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink)),
                       ),
-                      child: Text(
-                        s,
-                        style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum),
-                      ),
-                    ),
-                  )).toList(),
+                    );
+                  },
                 ),
               ),
           ],
