@@ -658,72 +658,87 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
         // Tab bar — icon + text on active (Material You style)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
+          height: 48,
           decoration: BoxDecoration(
             color: OlfatoTokens.mist,
             borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
           ),
           padding: const EdgeInsets.all(4),
-          child: Row(
-            children: List.generate(4, (index) {
-              final isActive = activeIndex == index;
-              final icon = switch (index) {
-                0 => Icons.filter_vintage_outlined,
-                1 => Icons.speed_outlined,
-                2 => Icons.info_outline,
-                3 => Icons.edit_note_outlined,
-                _ => Icons.circle,
-              };
-              final label = switch (index) {
-                0 => 'Notas',
-                1 => 'Performance',
-                2 => 'Sobre',
-                3 => 'Avaliação',
-                _ => '',
-              };
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Calculate widths: inactive tabs get equal share, active gets extra
+              final totalWidth = constraints.maxWidth;
+              final inactiveWidth = totalWidth / 5; // each inactive gets 1/5
+              final activeWidth = totalWidth - (inactiveWidth * 3); // active gets rest (2/5)
 
-              return Expanded(
-                flex: isActive ? 3 : 2,
-                child: GestureDetector(
-                  onTap: () {
-                    widget.tabController.animateTo(index);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeInOut,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isActive ? Colors.white : Colors.transparent,
-                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                      boxShadow: isActive ? [OlfatoTokens.cardShadow] : [],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          icon,
-                          size: 18,
-                          color: isActive ? OlfatoTokens.ink : OlfatoTokens.gray,
-                        ),
-                        if (isActive) ...[
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              label,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: OlfatoTokens.ink,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+              return Stack(
+                children: [
+                  Row(
+                    children: List.generate(4, (index) {
+                      final isActive = activeIndex == index;
+                      final icon = switch (index) {
+                        0 => Icons.filter_vintage_outlined,
+                        1 => Icons.speed_outlined,
+                        2 => Icons.info_outline,
+                        3 => Icons.edit_note_outlined,
+                        _ => Icons.circle,
+                      };
+                      final label = switch (index) {
+                        0 => 'Notas',
+                        1 => 'Perf.',
+                        2 => 'Sobre',
+                        3 => 'Avaliar',
+                        _ => '',
+                      };
+
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeInOut,
+                        width: isActive ? activeWidth : inactiveWidth,
+                        height: 40,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            widget.tabController.animateTo(index);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                            decoration: BoxDecoration(
+                              color: isActive ? Colors.white : Colors.transparent,
+                              borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                              boxShadow: isActive ? [OlfatoTokens.cardShadow] : [],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  icon,
+                                  size: 18,
+                                  color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
+                                ),
+                                if (isActive) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    label,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: OlfatoTokens.ink,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                        ],
-                      ],
-                    ),
+                        ),
+                      );
+                    }),
                   ),
-                ),
+                ],
               );
-            }),
+            },
           ),
         ),
         const SizedBox(height: 16),
