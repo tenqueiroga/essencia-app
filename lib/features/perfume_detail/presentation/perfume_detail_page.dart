@@ -655,90 +655,67 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
 
     return Column(
       children: [
-        // Tab bar — icon + text on active (Material You style)
+        // Tab bar — emoji + text on active
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
-          height: 48,
+          height: 44,
           decoration: BoxDecoration(
             color: OlfatoTokens.mist,
             borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
           ),
-          padding: const EdgeInsets.all(4),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Calculate widths: inactive tabs get equal share, active gets extra
-              final totalWidth = constraints.maxWidth;
-              final inactiveWidth = totalWidth / 5; // each inactive gets 1/5
-              final activeWidth = totalWidth - (inactiveWidth * 3); // active gets rest (2/5)
+          padding: const EdgeInsets.all(3),
+          child: Row(
+            children: List.generate(4, (index) {
+              final isActive = activeIndex == index;
+              final emoji = switch (index) {
+                0 => '🌸',
+                1 => '📊',
+                2 => 'ℹ️',
+                3 => '📝',
+                _ => '',
+              };
+              final label = switch (index) {
+                0 => 'Notas',
+                1 => 'Perf.',
+                2 => 'Sobre',
+                3 => 'Avaliar',
+                _ => '',
+              };
 
-              return Stack(
-                children: [
-                  Row(
-                    children: List.generate(4, (index) {
-                      final isActive = activeIndex == index;
-                      final icon = switch (index) {
-                        0 => Icons.filter_vintage_outlined,
-                        1 => Icons.speed_outlined,
-                        2 => Icons.info_outline,
-                        3 => Icons.edit_note_outlined,
-                        _ => Icons.circle,
-                      };
-                      final label = switch (index) {
-                        0 => 'Notas',
-                        1 => 'Perf.',
-                        2 => 'Sobre',
-                        3 => 'Avaliar',
-                        _ => '',
-                      };
-
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                        width: isActive ? activeWidth : inactiveWidth,
-                        height: 40,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            widget.tabController.animateTo(index);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeInOut,
-                            decoration: BoxDecoration(
-                              color: isActive ? Colors.white : Colors.transparent,
-                              borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-                              boxShadow: isActive ? [OlfatoTokens.cardShadow] : [],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  icon,
-                                  size: 18,
-                                  color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
-                                ),
-                                if (isActive) ...[
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    label,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: OlfatoTokens.ink,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ],
+              return Expanded(
+                flex: isActive ? 3 : 2,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => widget.tabController.animateTo(index),
+                  child: Container(
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: isActive ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                      boxShadow: isActive ? [OlfatoTokens.cardShadow] : [],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(emoji, style: TextStyle(fontSize: isActive ? 14 : 16)),
+                        if (isActive) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            label,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: OlfatoTokens.ink,
                             ),
                           ),
-                        ),
-                      );
-                    }),
+                        ],
+                      ],
+                    ),
                   ),
-                ],
+                ),
               );
-            },
+            }),
           ),
         ),
         const SizedBox(height: 16),
@@ -1312,11 +1289,26 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   @override
   void initState() {
     super.initState();
-    _buildKnownNotes();
+    _loadAllNotes();
     _loadReview();
   }
 
-  void _buildKnownNotes() {
+  Future<void> _loadAllNotes() async {
+    try {
+      final response = await ApiClient().dio.get('/perfumes/notes');
+      final data = response.data as List;
+      if (mounted) {
+        setState(() {
+          _allKnownNotes = data.cast<String>();
+        });
+      }
+    } catch (_) {
+      // Fallback to perfume's own notes
+      _buildKnownNotesFromPerfume();
+    }
+  }
+
+  void _buildKnownNotesFromPerfume() {
     final Set<String> notes = {};
     for (final key in ['top_notes', 'heart_notes', 'base_notes']) {
       final list = widget.perfume[key] as List? ?? [];
@@ -1460,32 +1452,32 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
           // ─── Performance ratings in a row ───
           _sectionLabel('Performance'),
           const SizedBox(height: 12),
-          _ratingRow(
-            icon: Icons.hourglass_bottom_outlined,
+          _ratingRowEmoji(
+            emoji: '⏳',
             label: 'Longevidade',
             value: _longevityRating,
             options: const ['curta', 'média', 'longa'],
             onChanged: (v) => setState(() => _longevityRating = v),
           ),
           const SizedBox(height: 10),
-          _ratingRow(
-            icon: Icons.air_outlined,
+          _ratingRowEmoji(
+            emoji: '💨',
             label: 'Projeção',
             value: _projectionRating,
             options: const ['íntima', 'moderada', 'forte'],
             onChanged: (v) => setState(() => _projectionRating = v),
           ),
           const SizedBox(height: 10),
-          _ratingRow(
-            icon: Icons.auto_awesome_outlined,
+          _ratingRowEmoji(
+            emoji: '✨',
             label: 'Evolução',
             value: _evolutionRating,
             options: const ['linear', 'moderada', 'complexa'],
             onChanged: (v) => setState(() => _evolutionRating = v),
           ),
           const SizedBox(height: 10),
-          _ratingRow(
-            icon: Icons.paid_outlined,
+          _ratingRowEmoji(
+            emoji: '💰',
             label: 'Custo-benef.',
             value: _priceRating,
             options: const ['ruim', 'ok', 'bom', 'excelente'],
@@ -1675,10 +1667,22 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
     required List<String> options,
     required ValueChanged<String?> onChanged,
   }) {
+    return _ratingRowEmoji(emoji: '', label: label, value: value, options: options, onChanged: onChanged);
+  }
+
+  Widget _ratingRowEmoji({
+    required String emoji,
+    required String label,
+    required String? value,
+    required List<String> options,
+    required ValueChanged<String?> onChanged,
+  }) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: OlfatoTokens.gray),
-        const SizedBox(width: 8),
+        if (emoji.isNotEmpty) ...[
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 6),
+        ],
         SizedBox(
           width: 80,
           child: Text(
