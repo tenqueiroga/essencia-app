@@ -1273,25 +1273,31 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   Future<void> _loadReview() async {
     try {
       final response = await ApiClient().dio.get('/perfumes/${widget.perfumeId}/review');
-      final data = response.data as Map<String, dynamic>;
+      if (response.data == null || response.data is! Map) {
+        if (mounted) setState(() => _loaded = true);
+        return;
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
       if (mounted) {
         _hasReview = data['has_review'] == true;
-        _season = (data['season'] as List?)?.cast<String>() ?? [];
-        _longevityRating = data['longevity_rating'] as String?;
-        _projectionRating = data['projection_rating'] as String?;
-        _evolutionRating = data['evolution_rating'] as String?;
-        _priceRating = data['price_rating'] as String?;
-        _pricePaid = (data['price_paid'] as num?)?.toDouble();
-        _personalTopNotes = (data['personal_top_notes'] as List?)?.cast<String>() ?? [];
-        _personalHeartNotes = (data['personal_heart_notes'] as List?)?.cast<String>() ?? [];
-        _personalBaseNotes = (data['personal_base_notes'] as List?)?.cast<String>() ?? [];
-        _reviewText = data['review_text'] as String? ?? '';
-        _finalScore = data['final_score'] as int?;
+        _season = List<String>.from(data['season'] ?? []);
+        _longevityRating = data['longevity_rating']?.toString();
+        _projectionRating = data['projection_rating']?.toString();
+        _evolutionRating = data['evolution_rating']?.toString();
+        _priceRating = data['price_rating']?.toString();
+        final pp = data['price_paid'];
+        _pricePaid = pp != null ? double.tryParse(pp.toString()) : null;
+        _personalTopNotes = List<String>.from(data['personal_top_notes'] ?? []);
+        _personalHeartNotes = List<String>.from(data['personal_heart_notes'] ?? []);
+        _personalBaseNotes = List<String>.from(data['personal_base_notes'] ?? []);
+        _reviewText = (data['review_text'] ?? '').toString();
+        final fs = data['final_score'];
+        _finalScore = fs != null ? int.tryParse(fs.toString()) : null;
         _reviewTextController.text = _reviewText;
         _priceController.text = _pricePaid != null && _pricePaid! > 0 ? _pricePaid!.toStringAsFixed(2) : '';
         setState(() => _loaded = true);
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _loaded = true);
     }
   }
