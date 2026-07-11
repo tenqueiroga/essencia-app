@@ -3,9 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+import '../../../core/platform/platform_share.dart' as platform_share;
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 
@@ -286,18 +284,16 @@ class _CollectionPageState extends ConsumerState<CollectionPage> {
                       return;
                     }
 
-                    final navigator = html.window.navigator;
-                    if (js_util.hasProperty(navigator, 'share')) {
-                      try {
-                        final shareData = js_util.newObject<Object>();
-                        js_util.setProperty(shareData, 'text', '🧴 Confira minha coleção de perfumes!\n$url');
-                        js_util.setProperty(shareData, 'title', 'Minha Coleção — Olfato');
-                        await js_util.promiseToFuture(js_util.callMethod(navigator, 'share', [shareData]));
-                      } catch (_) {
+                    final text = '🧴 Confira minha coleção de perfumes!\n$url';
+                    final title = 'Minha Coleção — Olfato';
+
+                    try {
+                      final shared = await platform_share.platformShare(text, title);
+                      if (!shared) {
                         await Clipboard.setData(ClipboardData(text: url));
                         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Link copiado! 📋\n$url'), backgroundColor: OlfatoTokens.plum));
                       }
-                    } else {
+                    } catch (_) {
                       await Clipboard.setData(ClipboardData(text: url));
                       if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Link copiado! 📋\n$url'), backgroundColor: OlfatoTokens.plum));
                     }
@@ -694,6 +690,7 @@ class _CollectionGridItem extends StatelessWidget {
     final family = perfume?['olfactory_family']?['name'] as String? ?? '';
     final volume = perfume?['volume'] as String? ?? '';
     final season = _seasonLabel(perfume);
+    final hasReview = item['has_review'] == true;
 
     return GestureDetector(
       onTap: onTap,
@@ -703,86 +700,118 @@ class _CollectionGridItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(OlfatoTokens.radiusCard),
           boxShadow: [OlfatoTokens.cardShadow],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // Image
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(OlfatoTokens.radiusCard),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(OlfatoTokens.radiusCard),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(OlfatoTokens.radiusCard),
+                      ),
+                      child: imageUrl.isNotEmpty
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const Center(
+                                child: Icon(Icons.local_florist,
+                                    color: OlfatoTokens.plum, size: 28),
+                              ),
+                            )
+                          : const Center(
+                              child: Icon(Icons.local_florist,
+                                  color: OlfatoTokens.plum, size: 28),
+                            ),
+                    ),
                   ),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(OlfatoTokens.radiusCard),
-                  ),
-                  child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => const Center(
-                            child: Icon(Icons.local_florist,
-                                color: OlfatoTokens.plum, size: 28),
-                          ),
-                        )
-                      : const Center(
-                          child: Icon(Icons.local_florist,
-                              color: OlfatoTokens.plum, size: 28),
-                        ),
-                ),
-              ),
-            ),
-            // Info
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: OlfatoTokens.ink,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      brand,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: OlfatoTokens.plum,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    // Volume + Family + Season row
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 3,
+                // Info
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (volume.isNotEmpty)
-                          _miniChip(volume),
-                        if (family.isNotEmpty)
-                          _miniChip(family),
-                        if (season.isNotEmpty)
-                          _miniChip(season),
+                        Text(
+                          name,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: OlfatoTokens.ink,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          brand,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: OlfatoTokens.plum,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const Spacer(),
+                        // Volume + Family + Season row
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 3,
+                          children: [
+                            if (volume.isNotEmpty)
+                              _miniChip(volume),
+                            if (family.isNotEmpty)
+                              _miniChip(family),
+                            if (season.isNotEmpty)
+                              _miniChip(season),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
+                ),
+              ],
+            ),
+            // Badge: "Avaliado" indicator
+            if (hasReview)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: OlfatoTokens.plum,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.edit_note, size: 12, color: Colors.white),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Avaliado',
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

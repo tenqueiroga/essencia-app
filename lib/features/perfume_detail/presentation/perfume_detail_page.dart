@@ -3,10 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/platform/platform_share.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
 import '../../collection/presentation/type_selection_dialog.dart';
@@ -57,7 +55,7 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadData();
   }
 
@@ -193,21 +191,13 @@ class _PerfumeDetailPageState extends ConsumerState<PerfumeDetailPage>
                 final brand = _perfume!['brand'] as String? ?? '';
                 final text = '🧴 $name — $brand\n\nConfira no PerfumIA: https://perfumia.com.br/app/perfume/${widget.perfumeId}';
 
-                // Try Web Share API first
-                final navigator = html.window.navigator;
-                if (js_util.hasProperty(navigator, 'share')) {
-                  try {
-                    final shareData = js_util.newObject<Object>();
-                    js_util.setProperty(shareData, 'text', text);
-                    js_util.setProperty(shareData, 'title', '$name — $brand');
-                    await js_util.promiseToFuture(js_util.callMethod(navigator, 'share', [shareData]));
-                  } catch (_) {
-                    // User cancelled or error — fallback to clipboard
+                try {
+                  final shared = await platformShare(text, '$name — $brand');
+                  if (!shared) {
                     await Clipboard.setData(ClipboardData(text: text));
                     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
                   }
-                } else {
-                  // No Web Share API — copy to clipboard
+                } catch (_) {
                   await Clipboard.setData(ClipboardData(text: text));
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copiado! 📋'), backgroundColor: OlfatoTokens.plum));
                 }
@@ -665,37 +655,75 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
 
     return Column(
       children: [
-        // Tab bar
+        // Tab bar — icon + text on active (Material You style)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
             color: OlfatoTokens.mist,
             borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
           ),
-          child: TabBar(
-            controller: widget.tabController,
-            labelColor: OlfatoTokens.ink,
-            unselectedLabelColor: OlfatoTokens.gray,
-            labelStyle: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelStyle: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-            ),
-            indicator: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-              boxShadow: [OlfatoTokens.cardShadow],
-            ),
-            indicatorSize: TabBarIndicatorSize.tab,
-            dividerColor: Colors.transparent,
-            tabs: const [
-              Tab(text: 'Notas'),
-              Tab(text: 'Performance'),
-              Tab(text: 'Sobre'),
-            ],
+          padding: const EdgeInsets.all(4),
+          child: Row(
+            children: List.generate(4, (index) {
+              final isActive = activeIndex == index;
+              final icon = switch (index) {
+                0 => Icons.filter_vintage_outlined,
+                1 => Icons.speed_outlined,
+                2 => Icons.info_outline,
+                3 => Icons.edit_note_outlined,
+                _ => Icons.circle,
+              };
+              final label = switch (index) {
+                0 => 'Notas',
+                1 => 'Performance',
+                2 => 'Sobre',
+                3 => 'Avaliação',
+                _ => '',
+              };
+
+              return Expanded(
+                flex: isActive ? 3 : 2,
+                child: GestureDetector(
+                  onTap: () {
+                    widget.tabController.animateTo(index);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeInOut,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isActive ? Colors.white : Colors.transparent,
+                      borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+                      boxShadow: isActive ? [OlfatoTokens.cardShadow] : [],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          icon,
+                          size: 18,
+                          color: isActive ? OlfatoTokens.ink : OlfatoTokens.gray,
+                        ),
+                        if (isActive) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              label,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: OlfatoTokens.ink,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
           ),
         ),
         const SizedBox(height: 16),
@@ -707,6 +735,7 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
             0 => _NotasTab(perfume: widget.perfume),
             1 => _PerformanceTab(perfume: widget.perfume),
             2 => _SobreTab(perfume: widget.perfume),
+            3 => _MinhaAvaliacaoTab(perfumeId: widget.perfume['id'] as String),
             _ => const SizedBox.shrink(),
           },
         ),
@@ -1221,6 +1250,492 @@ class _SobreTab extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+// ─── MinhaAvaliacaoTab ────────────────────────────────────────────────────────
+
+class _MinhaAvaliacaoTab extends StatefulWidget {
+  final String perfumeId;
+
+  const _MinhaAvaliacaoTab({required this.perfumeId});
+
+  @override
+  State<_MinhaAvaliacaoTab> createState() => _MinhaAvaliacaoTabState();
+}
+
+class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
+  bool _loading = true;
+  bool _saving = false;
+  bool _hasReview = false;
+
+  // Form fields
+  List<String> _season = [];
+  String? _longevityRating;
+  String? _projectionRating;
+  String? _evolutionRating;
+  String? _priceRating;
+  List<String> _personalTopNotes = [];
+  List<String> _personalHeartNotes = [];
+  List<String> _personalBaseNotes = [];
+  String _reviewText = '';
+  int? _finalScore;
+
+  final _reviewTextController = TextEditingController();
+  final _topNotesController = TextEditingController();
+  final _heartNotesController = TextEditingController();
+  final _baseNotesController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReview();
+  }
+
+  @override
+  void dispose() {
+    _reviewTextController.dispose();
+    _topNotesController.dispose();
+    _heartNotesController.dispose();
+    _baseNotesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadReview() async {
+    try {
+      final response = await ApiClient().dio.get('/perfumes/${widget.perfumeId}/review');
+      final data = response.data as Map<String, dynamic>;
+      if (mounted) {
+        setState(() {
+          _hasReview = data['has_review'] == true;
+          _season = (data['season'] as List?)?.cast<String>() ?? [];
+          _longevityRating = data['longevity_rating'] as String?;
+          _projectionRating = data['projection_rating'] as String?;
+          _evolutionRating = data['evolution_rating'] as String?;
+          _priceRating = data['price_rating'] as String?;
+          _personalTopNotes = (data['personal_top_notes'] as List?)?.cast<String>() ?? [];
+          _personalHeartNotes = (data['personal_heart_notes'] as List?)?.cast<String>() ?? [];
+          _personalBaseNotes = (data['personal_base_notes'] as List?)?.cast<String>() ?? [];
+          _reviewText = data['review_text'] as String? ?? '';
+          _finalScore = data['final_score'] as int?;
+          _reviewTextController.text = _reviewText;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveReview() async {
+    setState(() => _saving = true);
+    try {
+      await ApiClient().dio.post('/perfumes/${widget.perfumeId}/review', data: {
+        'season': _season.isEmpty ? null : _season,
+        'longevity_rating': _longevityRating,
+        'projection_rating': _projectionRating,
+        'evolution_rating': _evolutionRating,
+        'price_rating': _priceRating,
+        'personal_top_notes': _personalTopNotes.isEmpty ? null : _personalTopNotes,
+        'personal_heart_notes': _personalHeartNotes.isEmpty ? null : _personalHeartNotes,
+        'personal_base_notes': _personalBaseNotes.isEmpty ? null : _personalBaseNotes,
+        'review_text': _reviewText.isEmpty ? null : _reviewText,
+        'final_score': _finalScore,
+      });
+      if (mounted) {
+        setState(() {
+          _hasReview = true;
+          _saving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Avaliação salva! ✨'),
+          backgroundColor: OlfatoTokens.plum,
+        ));
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Erro ao salvar avaliação'),
+          backgroundColor: OlfatoTokens.error,
+        ));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(child: CircularProgressIndicator(color: OlfatoTokens.plum)),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Minha Avaliação',
+            style: GoogleFonts.ebGaramond(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: OlfatoTokens.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Seu diário pessoal sobre este perfume',
+            style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
+          ),
+          const SizedBox(height: 20),
+
+          // ─── Estação ───
+          _sectionLabel('Estação'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _toggleChip('❄️ Inverno', 'inverno', _season, (v) => setState(() {
+                _season.contains(v) ? _season.remove(v) : _season.add(v);
+              })),
+              _toggleChip('☀️ Verão', 'verão', _season, (v) => setState(() {
+                _season.contains(v) ? _season.remove(v) : _season.add(v);
+              })),
+              _toggleChip('🌸 Primavera', 'primavera', _season, (v) => setState(() {
+                _season.contains(v) ? _season.remove(v) : _season.add(v);
+              })),
+              _toggleChip('🍂 Outono', 'outono', _season, (v) => setState(() {
+                _season.contains(v) ? _season.remove(v) : _season.add(v);
+              })),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // ─── Performance ratings in a row ───
+          _sectionLabel('Performance'),
+          const SizedBox(height: 12),
+          _ratingRow(
+            icon: Icons.timer_outlined,
+            label: 'Longevidade',
+            value: _longevityRating,
+            options: const ['curta', 'média', 'longa'],
+            onChanged: (v) => setState(() => _longevityRating = v),
+          ),
+          const SizedBox(height: 10),
+          _ratingRow(
+            icon: Icons.waves_outlined,
+            label: 'Projeção',
+            value: _projectionRating,
+            options: const ['íntima', 'moderada', 'forte'],
+            onChanged: (v) => setState(() => _projectionRating = v),
+          ),
+          const SizedBox(height: 10),
+          _ratingRow(
+            icon: Icons.auto_awesome_outlined,
+            label: 'Evolução',
+            value: _evolutionRating,
+            options: const ['linear', 'moderada', 'complexa'],
+            onChanged: (v) => setState(() => _evolutionRating = v),
+          ),
+          const SizedBox(height: 10),
+          _ratingRow(
+            icon: Icons.attach_money_outlined,
+            label: 'Preço',
+            value: _priceRating,
+            options: const ['ruim', 'ok', 'bom', 'excelente'],
+            onChanged: (v) => setState(() => _priceRating = v),
+          ),
+          const SizedBox(height: 24),
+
+          // ─── Notas percebidas ───
+          _sectionLabel('Notas que percebo'),
+          const SizedBox(height: 12),
+          _notesInput('Topo', _topNotesController, _personalTopNotes, (notes) {
+            setState(() => _personalTopNotes = notes);
+          }),
+          const SizedBox(height: 10),
+          _notesInput('Coração', _heartNotesController, _personalHeartNotes, (notes) {
+            setState(() => _personalHeartNotes = notes);
+          }),
+          const SizedBox(height: 10),
+          _notesInput('Base', _baseNotesController, _personalBaseNotes, (notes) {
+            setState(() => _personalBaseNotes = notes);
+          }),
+          const SizedBox(height: 24),
+
+          // ─── Texto livre ───
+          _sectionLabel('Avaliação'),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _reviewTextController,
+            maxLines: 4,
+            maxLength: 5000,
+            onChanged: (v) => _reviewText = v,
+            style: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.ink),
+            decoration: InputDecoration(
+              hintText: 'Suas impressões pessoais...',
+              hintStyle: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: OlfatoTokens.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: OlfatoTokens.borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: OlfatoTokens.plum),
+              ),
+              contentPadding: const EdgeInsets.all(14),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ─── Nota Final (1-10 stars) ───
+          _sectionLabel('Nota Final'),
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(10, (i) {
+              final score = i + 1;
+              final isSelected = _finalScore != null && score <= _finalScore!;
+              return GestureDetector(
+                onTap: () => setState(() => _finalScore = score == _finalScore ? null : score),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(
+                    isSelected ? Icons.star_rounded : Icons.star_border_rounded,
+                    size: 28,
+                    color: isSelected ? OlfatoTokens.amber : OlfatoTokens.gray.withValues(alpha: 0.4),
+                  ),
+                ),
+              );
+            }),
+          ),
+          if (_finalScore != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '$_finalScore/10',
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: OlfatoTokens.plum),
+              ),
+            ),
+          const SizedBox(height: 28),
+
+          // ─── Save button ───
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _saving ? null : _saveReview,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: OlfatoTokens.plum,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: _saving
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(
+                      _hasReview ? 'Atualizar Avaliação' : 'Salvar Avaliação',
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: OlfatoTokens.gray,
+      ),
+    );
+  }
+
+  Widget _toggleChip(String label, String value, List<String> selected, ValueChanged<String> onToggle) {
+    final isActive = selected.contains(value);
+    return GestureDetector(
+      onTap: () => onToggle(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? OlfatoTokens.plum.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive ? OlfatoTokens.plum : OlfatoTokens.borderLight,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            color: isActive ? OlfatoTokens.plum : OlfatoTokens.ink,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _ratingRow({
+    required IconData icon,
+    required String label,
+    required String? value,
+    required List<String> options,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: OlfatoTokens.gray),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.ink),
+          ),
+        ),
+        Expanded(
+          child: Row(
+            children: options.map((opt) {
+              final isActive = value == opt;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => onChanged(isActive ? null : opt),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isActive ? OlfatoTokens.plum : Colors.white,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isActive ? OlfatoTokens.plum : OlfatoTokens.borderLight,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        opt,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                          color: isActive ? Colors.white : OlfatoTokens.gray,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _notesInput(String label, TextEditingController controller, List<String> notes, ValueChanged<List<String>> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Notas de $label',
+          style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
+        ),
+        const SizedBox(height: 4),
+        if (notes.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: notes.map((note) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: OlfatoTokens.plum.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: OlfatoTokens.plum.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      note,
+                      style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.plum),
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () {
+                        final updated = List<String>.from(notes)..remove(note);
+                        onChanged(updated);
+                      },
+                      child: Icon(Icons.close, size: 12, color: OlfatoTokens.plum.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ),
+          ),
+        TextField(
+          controller: controller,
+          style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
+          decoration: InputDecoration(
+            hintText: 'Adicionar nota...',
+            hintStyle: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
+            isDense: true,
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: OlfatoTokens.borderLight),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: OlfatoTokens.borderLight),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: OlfatoTokens.plum),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
+              onPressed: () {
+                final text = controller.text.trim();
+                if (text.isNotEmpty) {
+                  final updated = List<String>.from(notes)..add(text);
+                  onChanged(updated);
+                  controller.clear();
+                }
+              },
+            ),
+          ),
+          onSubmitted: (text) {
+            if (text.trim().isNotEmpty) {
+              final updated = List<String>.from(notes)..add(text.trim());
+              onChanged(updated);
+              controller.clear();
+            }
+          },
+        ),
+      ],
     );
   }
 }
