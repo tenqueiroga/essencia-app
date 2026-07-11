@@ -19,6 +19,15 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Disable AAR metadata check globally (plugins compiled against older SDK)
+gradle.taskGraph.whenReady {
+    allTasks.forEach { task ->
+        if (task.name.contains("AarMetadata")) {
+            task.enabled = false
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

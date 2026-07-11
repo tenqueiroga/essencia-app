@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import '../core/platform/platform_url.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/collection/presentation/collection_page.dart';
@@ -22,14 +21,7 @@ import 'main_shell.dart';
 /// Determine initial location from the browser URL.
 /// If the URL contains a deep link (like /shared/), use it. Otherwise default to /login.
 String _getInitialLocation() {
-  try {
-    final path = Uri.parse(html.window.location.href).path;
-    // Strip the /app prefix from the path (base href)
-    final appPath = path.startsWith('/app') ? path.substring(4) : path;
-    if (appPath.startsWith('/shared/')) return appPath;
-    if (appPath.startsWith('/perfume/')) return appPath;
-  } catch (_) {}
-  return '/login';
+  return getInitialLocationFromUrl();
 }
 
 final appRouter = GoRouter(

@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:ui_web' as ui_web;
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/platform/platform_camera.dart';
 import '../../collection/presentation/type_selection_dialog.dart';
 
 class ScanPage extends StatefulWidget {
@@ -30,30 +26,19 @@ class _ScanPageState extends State<ScanPage> {
   Map<String, dynamic>? _foundPerfume;
   String? _capturedImageData; // data URL for showing captured frame
 
-  html.VideoElement? _videoElement;
-  html.MediaStream? _mediaStream;
-  late final String _viewId;
-  bool _viewRegistered = false;
+  late PlatformCamera _camera;
 
   @override
   void initState() {
     super.initState();
-    _viewId = 'scan-camera-${DateTime.now().millisecondsSinceEpoch}';
+    _camera = PlatformCamera();
     _initWebCamera();
   }
 
   @override
   void dispose() {
-    _stopCamera();
+    _camera.dispose();
     super.dispose();
-  }
-
-  void _stopCamera() {
-    _mediaStream?.getTracks().forEach((track) => track.stop());
-    _mediaStream = null;
-    _videoElement?.pause();
-    _videoElement?.srcObject = null;
-    _videoElement = null;
   }
 
   Future<void> _initWebCamera() async {
@@ -63,59 +48,25 @@ class _ScanPageState extends State<ScanPage> {
       _cameraErrorMessage = null;
     });
 
-    try {
-      final constraints = {
-        'video': {'facingMode': 'environment', 'width': {'ideal': 1280}, 'height': {'ideal': 720}},
-        'audio': false,
-      };
+    // Dispose previous instance on retry
+    _camera.dispose();
+    _camera = PlatformCamera();
+    await _camera.initialize();
 
-      html.MediaStream stream;
-      try {
-        stream = await html.window.navigator.mediaDevices!.getUserMedia(constraints);
-      } catch (_) {
-        // Fallback without facingMode
-        stream = await html.window.navigator.mediaDevices!.getUserMedia({'video': true, 'audio': false});
-      }
-
-      _mediaStream = stream;
-
-      final video = html.VideoElement()
-        ..srcObject = stream
-        ..autoplay = true
-        ..muted = true
-        ..setAttribute('playsinline', 'true')
-        ..style.width = '100%'
-        ..style.height = '100%'
-        ..style.objectFit = 'cover';
-
-      _videoElement = video;
-
-      if (!_viewRegistered) {
-        ui_web.platformViewRegistry.registerViewFactory(_viewId, (int id) => _videoElement!);
-        _viewRegistered = true;
-      }
-
-      await video.play();
-
-      if (mounted) setState(() => _isCameraReady = true);
-    } catch (e) {
-      if (mounted) {
-        String msg = 'Erro ao acessar câmera.';
-        final err = e.toString();
-        if (err.contains('NotAllowedError') || err.contains('Permission') || err.contains('Denied')) {
-          msg = 'Permissão negada. Habilite a câmera nas configurações do navegador.';
-        } else if (err.contains('NotFoundError')) {
-          msg = 'Nenhuma câmera encontrada.';
-        } else if (err.contains('NotReadableError') || err.contains('AbortError')) {
-          msg = 'Câmera em uso por outro aplicativo.';
-        }
-        setState(() { _isCameraError = true; _cameraErrorMessage = msg; });
+    if (mounted) {
+      if (_camera.hasError) {
+        setState(() {
+          _isCameraError = true;
+          _cameraErrorMessage = _camera.errorMessage;
+        });
+      } else {
+        setState(() => _isCameraReady = true);
       }
     }
   }
 
   Future<void> _capturePhoto() async {
-    if (_videoElement == null || !_isCameraReady) return;
+    if (!_isCameraReady) return;
     if (_isIdentifying) return;
 
     // Reset state for new capture
@@ -126,13 +77,12 @@ class _ScanPageState extends State<ScanPage> {
     });
 
     try {
-      final vw = _videoElement!.videoWidth;
-      final vh = _videoElement!.videoHeight;
-      final canvas = html.CanvasElement(width: vw, height: vh);
-      canvas.context2D.drawImage(_videoElement!, 0, 0);
-
       // Get data URL for preview
-      final dataUrl = canvas.toDataUrl('image/jpeg', 0.85);
+      final dataUrl = await _camera.captureDataUrl();
+      if (dataUrl == null) {
+        setState(() { _error = 'Não foi possível capturar a imagem.'; });
+        return;
+      }
 
       setState(() {
         _showCapturedFrame = true;
@@ -239,7 +189,7 @@ class _ScanPageState extends State<ScanPage> {
         children: [
           // Always keep the live camera in the tree
           if (_isCameraReady)
-            SizedBox.expand(child: HtmlElementView(viewType: _viewId))
+            SizedBox.expand(child: _camera.buildPreview())
           else if (_isCameraError)
             _buildCameraError()
           else
