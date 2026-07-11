@@ -655,41 +655,31 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
 
     return Column(
       children: [
-        // Tab bar — scrollable text tabs (pill style)
+        // Tab bar — 2×2 segmented grid
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
             color: OlfatoTokens.mist,
-            borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: TabBar(
-            controller: widget.tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelColor: OlfatoTokens.ink,
-            unselectedLabelColor: OlfatoTokens.gray,
-            labelStyle: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-            unselectedLabelStyle: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-            ),
-            indicator: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl),
-              boxShadow: [OlfatoTokens.cardShadow],
-            ),
-            indicatorSize: TabBarIndicatorSize.tab,
-            dividerColor: Colors.transparent,
-            padding: const EdgeInsets.all(3),
-            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-            tabs: const [
-              Tab(text: 'Notas'),
-              Tab(text: 'Performance'),
-              Tab(text: 'Sobre'),
-              Tab(text: 'Avaliação'),
+          padding: const EdgeInsets.all(4),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _buildTab(0, 'Notas', activeIndex),
+                  const SizedBox(width: 4),
+                  _buildTab(1, 'Performance', activeIndex),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  _buildTab(2, 'Sobre', activeIndex),
+                  const SizedBox(width: 4),
+                  _buildTab(3, 'Minha Avaliação', activeIndex),
+                ],
+              ),
             ],
           ),
         ),
@@ -707,6 +697,34 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildTab(int index, String label, int activeIndex) {
+    final isActive = activeIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => widget.tabController.animateTo(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: isActive ? [OlfatoTokens.cardShadow] : [],
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive ? OlfatoTokens.plum : OlfatoTokens.gray,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1256,9 +1274,6 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   List<String> _allKnownNotes = [];
 
   final _reviewTextController = TextEditingController();
-  final _topNotesController = TextEditingController();
-  final _heartNotesController = TextEditingController();
-  final _baseNotesController = TextEditingController();
   final _priceController = TextEditingController();
 
   @override
@@ -1298,9 +1313,6 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   @override
   void dispose() {
     _reviewTextController.dispose();
-    _topNotesController.dispose();
-    _heartNotesController.dispose();
-    _baseNotesController.dispose();
     _priceController.dispose();
     super.dispose();
   }
@@ -1496,15 +1508,15 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
           // ─── Notas percebidas ───
           _sectionLabel('Notas que percebo'),
           const SizedBox(height: 12),
-          _notesInput('Topo', _topNotesController, _personalTopNotes, (notes) {
+          _notesInput('Topo', _personalTopNotes, (notes) {
             setState(() => _personalTopNotes = notes);
           }),
           const SizedBox(height: 10),
-          _notesInput('Coração', _heartNotesController, _personalHeartNotes, (notes) {
+          _notesInput('Coração', _personalHeartNotes, (notes) {
             setState(() => _personalHeartNotes = notes);
           }),
           const SizedBox(height: 10),
-          _notesInput('Base', _baseNotesController, _personalBaseNotes, (notes) {
+          _notesInput('Base', _personalBaseNotes, (notes) {
             setState(() => _personalBaseNotes = notes);
           }),
           const SizedBox(height: 24),
@@ -1703,10 +1715,9 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
     );
   }
 
-  Widget _notesInput(String label, TextEditingController controller, List<String> notes, ValueChanged<List<String>> onChanged) {
+  Widget _notesInput(String label, List<String> notes, ValueChanged<List<String>> onChanged) {
     return _NotesInputField(
       label: label,
-      controller: controller,
       notes: notes,
       allKnownNotes: _allKnownNotes,
       onChanged: onChanged,
@@ -1719,14 +1730,12 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
 
 class _NotesInputField extends StatefulWidget {
   final String label;
-  final TextEditingController controller;
   final List<String> notes;
   final List<String> allKnownNotes;
   final ValueChanged<List<String>> onChanged;
 
   const _NotesInputField({
     required this.label,
-    required this.controller,
     required this.notes,
     required this.allKnownNotes,
     required this.onChanged,
@@ -1737,10 +1746,11 @@ class _NotesInputField extends StatefulWidget {
 }
 
 class _NotesInputFieldState extends State<_NotesInputField> {
+  final _controller = TextEditingController();
   List<String> _suggestions = [];
   bool _showSuggestions = false;
 
-  void _onChanged(String query) {
+  void _search(String query) {
     if (query.length < 2) {
       setState(() { _suggestions = []; _showSuggestions = false; });
       return;
@@ -1760,7 +1770,7 @@ class _NotesInputFieldState extends State<_NotesInputField> {
     if (text.trim().isEmpty) return;
     final updated = List<String>.from(widget.notes)..add(text.trim());
     widget.onChanged(updated);
-    widget.controller.clear();
+    _controller.clear();
     setState(() { _suggestions = []; _showSuggestions = false; });
   }
 
@@ -1805,12 +1815,10 @@ class _NotesInputFieldState extends State<_NotesInputField> {
             ),
           ),
         TextField(
-          controller: widget.controller,
-          style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
-          onChanged: _onChanged,
+          controller: _controller,
           decoration: InputDecoration(
-            hintText: 'Adicionar nota...',
-            hintStyle: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
+            hintText: 'Ex: Baunilha, Sândalo...',
+            hintStyle: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.gray),
             isDense: true,
             filled: true,
             fillColor: OlfatoTokens.mist,
@@ -1818,13 +1826,13 @@ class _NotesInputFieldState extends State<_NotesInputField> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.borderLight)),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(OlfatoTokens.radiusControl), borderSide: BorderSide(color: OlfatoTokens.plum)),
-            suffixIcon: widget.controller.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
-                    onPressed: () => _addNote(widget.controller.text),
-                  )
-                : null,
+            suffixIcon: _controller.text.isNotEmpty ? IconButton(
+              icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
+              onPressed: () => _addNote(_controller.text),
+            ) : null,
           ),
+          style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
+          onChanged: _search,
           onSubmitted: _addNote,
         ),
         if (_showSuggestions)
@@ -1854,6 +1862,12 @@ class _NotesInputFieldState extends State<_NotesInputField> {
           ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }
 
