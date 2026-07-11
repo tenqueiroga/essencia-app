@@ -750,7 +750,7 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
             0 => _NotasTab(perfume: widget.perfume),
             1 => _PerformanceTab(perfume: widget.perfume),
             2 => _SobreTab(perfume: widget.perfume),
-            3 => _MinhaAvaliacaoTab(perfumeId: widget.perfume['id'] as String),
+            3 => _MinhaAvaliacaoTab(perfumeId: widget.perfume['id'] as String, perfume: widget.perfume),
             _ => const SizedBox.shrink(),
           },
         ),
@@ -1274,8 +1274,9 @@ class _SobreTab extends StatelessWidget {
 
 class _MinhaAvaliacaoTab extends StatefulWidget {
   final String perfumeId;
+  final Map<String, dynamic> perfume;
 
-  const _MinhaAvaliacaoTab({required this.perfumeId});
+  const _MinhaAvaliacaoTab({required this.perfumeId, required this.perfume});
 
   @override
   State<_MinhaAvaliacaoTab> createState() => _MinhaAvaliacaoTabState();
@@ -1292,21 +1293,39 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
   String? _projectionRating;
   String? _evolutionRating;
   String? _priceRating;
+  double? _pricePaid;
   List<String> _personalTopNotes = [];
   List<String> _personalHeartNotes = [];
   List<String> _personalBaseNotes = [];
   String _reviewText = '';
   int? _finalScore;
 
+  // Autocomplete suggestions from perfume data
+  List<String> _allKnownNotes = [];
+
   final _reviewTextController = TextEditingController();
   final _topNotesController = TextEditingController();
   final _heartNotesController = TextEditingController();
   final _baseNotesController = TextEditingController();
+  final _priceController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _buildKnownNotes();
     _loadReview();
+  }
+
+  void _buildKnownNotes() {
+    final Set<String> notes = {};
+    for (final key in ['top_notes', 'heart_notes', 'base_notes']) {
+      final list = widget.perfume[key] as List? ?? [];
+      for (final note in list) {
+        final name = note is String ? note : (note as Map?)?['name'] as String? ?? '';
+        if (name.isNotEmpty) notes.add(name);
+      }
+    }
+    _allKnownNotes = notes.toList()..sort();
   }
 
   @override
@@ -1315,6 +1334,7 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
     _topNotesController.dispose();
     _heartNotesController.dispose();
     _baseNotesController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -1330,12 +1350,16 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
           _projectionRating = data['projection_rating'] as String?;
           _evolutionRating = data['evolution_rating'] as String?;
           _priceRating = data['price_rating'] as String?;
+          _pricePaid = (data['price_paid'] as num?)?.toDouble();
           _personalTopNotes = (data['personal_top_notes'] as List?)?.cast<String>() ?? [];
           _personalHeartNotes = (data['personal_heart_notes'] as List?)?.cast<String>() ?? [];
           _personalBaseNotes = (data['personal_base_notes'] as List?)?.cast<String>() ?? [];
           _reviewText = data['review_text'] as String? ?? '';
           _finalScore = data['final_score'] as int?;
           _reviewTextController.text = _reviewText;
+          if (_pricePaid != null) {
+            _priceController.text = _pricePaid!.toStringAsFixed(2);
+          }
           _loading = false;
         });
       }
@@ -1353,6 +1377,7 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
         'projection_rating': _projectionRating,
         'evolution_rating': _evolutionRating,
         'price_rating': _priceRating,
+        'price_paid': _pricePaid,
         'personal_top_notes': _personalTopNotes.isEmpty ? null : _personalTopNotes,
         'personal_heart_notes': _personalHeartNotes.isEmpty ? null : _personalHeartNotes,
         'personal_base_notes': _personalBaseNotes.isEmpty ? null : _personalBaseNotes,
@@ -1436,7 +1461,7 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
           _sectionLabel('Performance'),
           const SizedBox(height: 12),
           _ratingRow(
-            icon: Icons.timer_outlined,
+            icon: Icons.hourglass_bottom_outlined,
             label: 'Longevidade',
             value: _longevityRating,
             options: const ['curta', 'média', 'longa'],
@@ -1444,7 +1469,7 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
           ),
           const SizedBox(height: 10),
           _ratingRow(
-            icon: Icons.waves_outlined,
+            icon: Icons.air_outlined,
             label: 'Projeção',
             value: _projectionRating,
             options: const ['íntima', 'moderada', 'forte'],
@@ -1460,11 +1485,44 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
           ),
           const SizedBox(height: 10),
           _ratingRow(
-            icon: Icons.attach_money_outlined,
-            label: 'Preço',
+            icon: Icons.paid_outlined,
+            label: 'Custo-benef.',
             value: _priceRating,
             options: const ['ruim', 'ok', 'bom', 'excelente'],
             onChanged: (v) => setState(() => _priceRating = v),
+          ),
+          const SizedBox(height: 16),
+
+          // ─── Preço pago ───
+          _sectionLabel('Preço pago'),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _priceController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.ink),
+            onChanged: (v) => _pricePaid = double.tryParse(v.replaceAll(',', '.')),
+            decoration: InputDecoration(
+              prefixText: 'R\$ ',
+              prefixStyle: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.plum, fontWeight: FontWeight.w600),
+              hintText: '0,00',
+              hintStyle: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.gray),
+              isDense: true,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: OlfatoTokens.borderLight),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: OlfatoTokens.borderLight),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: OlfatoTokens.plum),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -1708,46 +1766,91 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
               )).toList(),
             ),
           ),
-        TextField(
-          controller: controller,
-          style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
-          decoration: InputDecoration(
-            hintText: 'Adicionar nota...',
-            hintStyle: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
-            isDense: true,
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: OlfatoTokens.borderLight),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: OlfatoTokens.borderLight),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: OlfatoTokens.plum),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
-              onPressed: () {
-                final text = controller.text.trim();
-                if (text.isNotEmpty) {
-                  final updated = List<String>.from(notes)..add(text);
+        Autocomplete<String>(
+          optionsBuilder: (textEditingValue) {
+            if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
+            final query = textEditingValue.text.toLowerCase();
+            return _allKnownNotes.where((n) =>
+                n.toLowerCase().contains(query) && !notes.contains(n));
+          },
+          onSelected: (selected) {
+            final updated = List<String>.from(notes)..add(selected);
+            onChanged(updated);
+            controller.clear();
+          },
+          fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+            // Sync with our external controller
+            textController.addListener(() {
+              controller.text = textController.text;
+            });
+            return TextField(
+              controller: textController,
+              focusNode: focusNode,
+              style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink),
+              decoration: InputDecoration(
+                hintText: 'Adicionar nota...',
+                hintStyle: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
+                isDense: true,
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: OlfatoTokens.borderLight),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: OlfatoTokens.borderLight),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: OlfatoTokens.plum),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.add_circle_outline, size: 18, color: OlfatoTokens.plum),
+                  onPressed: () {
+                    final text = textController.text.trim();
+                    if (text.isNotEmpty) {
+                      final updated = List<String>.from(notes)..add(text);
+                      onChanged(updated);
+                      textController.clear();
+                    }
+                  },
+                ),
+              ),
+              onSubmitted: (text) {
+                if (text.trim().isNotEmpty) {
+                  final updated = List<String>.from(notes)..add(text.trim());
                   onChanged(updated);
-                  controller.clear();
+                  textController.clear();
                 }
               },
-            ),
-          ),
-          onSubmitted: (text) {
-            if (text.trim().isNotEmpty) {
-              final updated = List<String>.from(notes)..add(text.trim());
-              onChanged(updated);
-              controller.clear();
-            }
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 150, maxWidth: 250),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: options.length,
+                    itemBuilder: (context, index) {
+                      final opt = options.elementAt(index);
+                      return ListTile(
+                        dense: true,
+                        title: Text(opt, style: GoogleFonts.inter(fontSize: 13, color: OlfatoTokens.ink)),
+                        onTap: () => onSelected(opt),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
           },
         ),
       ],
