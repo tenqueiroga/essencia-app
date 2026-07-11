@@ -1002,7 +1002,7 @@ class _RotatingSectionState extends State<_RotatingSection> {
                 height: 80,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: OlfatoTokens.mist,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -1104,7 +1104,7 @@ class _RotatingSectionState extends State<_RotatingSection> {
                 height: 80,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: OlfatoTokens.mist,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 clipBehavior: Clip.antiAlias,
