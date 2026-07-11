@@ -674,17 +674,14 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
         ),
         const SizedBox(height: 16),
 
-        // Render active tab content inline — no nested scroll
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: switch (activeIndex) {
-            0 => _NotasTab(perfume: widget.perfume),
-            1 => _PerformanceTab(perfume: widget.perfume),
-            2 => _SobreTab(perfume: widget.perfume),
-            3 => _MinhaAvaliacaoTab(perfumeId: widget.perfume['id'] as String, perfume: widget.perfume),
-            _ => const SizedBox.shrink(),
-          },
-        ),
+        // Render active tab content inline
+        switch (activeIndex) {
+          0 => _NotasTab(perfume: widget.perfume),
+          1 => _PerformanceTab(perfume: widget.perfume),
+          2 => _SobreTab(perfume: widget.perfume),
+          3 => _MinhaAvaliacaoTab(perfumeId: widget.perfume['id'] as String, perfume: widget.perfume),
+          _ => const SizedBox.shrink(),
+        },
       ],
     );
   }
@@ -1347,13 +1344,6 @@ class _MinhaAvaliacaoTabState extends State<_MinhaAvaliacaoTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Padding(
-        padding: EdgeInsets.all(32),
-        child: Center(child: CircularProgressIndicator(color: OlfatoTokens.plum)),
-      );
-    }
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
