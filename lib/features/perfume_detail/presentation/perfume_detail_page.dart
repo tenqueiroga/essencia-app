@@ -675,11 +675,22 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
         ),
         const SizedBox(height: 16),
 
-        // Render active tab content inline
+        // Tabs 0-2: stateless, can be recreated instantly
         if (activeIndex == 0) _NotasTab(perfume: widget.perfume),
         if (activeIndex == 1) _PerformanceTab(perfume: widget.perfume),
         if (activeIndex == 2) _SobreTab(perfume: widget.perfume),
-        if (activeIndex == 3) _MinhaAvaliacaoTab(key: ValueKey('review_${widget.perfume['id']}'), perfumeId: widget.perfume['id'] as String, perfume: widget.perfume),
+        // Tab 3: stateful, always alive but hidden when not active
+        Visibility(
+          visible: activeIndex == 3,
+          maintainState: true,
+          maintainSize: false,
+          maintainAnimation: false,
+          child: _MinhaAvaliacaoTab(
+            key: ValueKey('review_${widget.perfume['id']}'),
+            perfumeId: widget.perfume['id'] as String,
+            perfume: widget.perfume,
+          ),
+        ),
       ],
     );
   }
@@ -688,9 +699,8 @@ class _PerfumeTabSectionState extends State<_PerfumeTabSection> {
     final isActive = activeIndex == index;
     return Expanded(
       child: GestureDetector(
-        onTap: () => widget.tabController.animateTo(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+        onTap: () => widget.tabController.animateTo(index, duration: Duration.zero),
+        child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isActive ? Colors.white : Colors.transparent,
