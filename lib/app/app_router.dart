@@ -10,6 +10,7 @@ import '../features/scan/presentation/scan_result_page.dart';
 import '../features/chat/presentation/chat_page.dart';
 import '../features/profile/presentation/profile_page.dart';
 import '../features/profile/presentation/reviews_page.dart';
+import '../features/profile/presentation/share_instagram_page.dart';
 import '../features/journal/presentation/journal_page.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
 import '../features/perfume_detail/presentation/perfume_detail_page.dart';
@@ -27,6 +28,14 @@ String _getInitialLocation() {
 
 final appRouter = GoRouter(
   initialLocation: _getInitialLocation(),
+  redirect: (context, state) {
+    // Strip /app prefix from deep links (Android App Links)
+    final path = state.uri.path;
+    if (path.startsWith('/app/')) {
+      return path.substring(4); // /app/perfume/xxx -> /perfume/xxx
+    }
+    return null;
+  },
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingPage()),
@@ -57,6 +66,7 @@ final appRouter = GoRouter(
         ),
         GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
         GoRoute(path: '/reviews', builder: (_, __) => const ReviewsPage()),
+        GoRoute(path: '/share-collection', builder: (_, __) => const ShareInstagramPage()),
         GoRoute(path: '/collection', builder: (_, __) => const CollectionPage()),
         GoRoute(path: '/wishlist', builder: (_, __) => const WishlistPage()),
         GoRoute(path: '/journal', builder: (_, __) => const JournalPage()),
