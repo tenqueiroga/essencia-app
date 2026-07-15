@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -571,8 +572,18 @@ class _ChatPageState extends State<ChatPage> {
         _lastFailedMessage = text;
       });
     } catch (e) {
+      String errorContent = 'Não consegui processar sua pergunta. Tente novamente.';
+      if (e is DioException && e.response?.data is Map) {
+        final errData = e.response!.data as Map;
+        if (errData['error']?['code'] == 'AI_LIMIT_EXCEEDED') {
+          final downloadApp = errData['error']?['download_app'] == true;
+          errorContent = downloadApp
+              ? '⚠️ Você atingiu o limite mensal da IA na web.\n\n📱 Baixe o app para continuar com limites maiores!'
+              : '⚠️ Você atingiu o limite mensal de uso da IA.\nO limite será renovado no próximo mês.';
+        }
+      }
       setState(() {
-        _messages.add({'role': 'assistant', 'content': 'Não consegui processar sua pergunta. Tente novamente.', 'isError': true});
+        _messages.add({'role': 'assistant', 'content': errorContent, 'isError': true});
         _isSending = false;
         _lastFailedMessage = text;
       });

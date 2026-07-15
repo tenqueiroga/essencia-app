@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/api_constants.dart';
 
@@ -34,6 +35,8 @@ class ApiClient {
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        // Send platform header for AI limit tracking
+        options.headers['X-Platform'] = kIsWeb ? 'web' : 'app';
         return handler.next(options);
       },
       onError: (error, handler) async {
@@ -59,8 +62,14 @@ class ApiClient {
           }
         }
 
-        // Handle 429 (rate limited) — wait and retry once
+        // Handle 429 (rate limited) — check if it's AI limit exceeded (no retry)
         if (error.response?.statusCode == 429) {
+          final data = error.response?.data;
+          if (data is Map && data['error']?['code'] == 'AI_LIMIT_EXCEEDED') {
+            // Don't retry — propagate the error as-is
+            return handler.next(error);
+          }
+          // Regular rate limit: wait and retry once
           final retryAfter = int.tryParse(error.response?.headers.value('retry-after') ?? '5') ?? 5;
           await Future.delayed(Duration(seconds: retryAfter.clamp(1, 10)));
           try {

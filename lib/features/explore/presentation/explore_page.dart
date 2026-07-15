@@ -249,8 +249,16 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       if (!mounted) return;
       
       String errorMsg = 'Erro ao identificar. Tente novamente.';
-      if (e.toString().contains('429') || e.toString().contains('limit_reached')) {
-        errorMsg = 'Você atingiu o limite de identificações deste mês (20). Aguarde o próximo mês.';
+      if (e is DioException && e.response?.data is Map) {
+        final errData = e.response!.data as Map;
+        if (errData['error']?['code'] == 'AI_LIMIT_EXCEEDED') {
+          final downloadApp = errData['error']?['download_app'] == true;
+          errorMsg = downloadApp
+              ? 'Limite mensal atingido na web. Baixe o app para limites maiores! 📱'
+              : 'Você atingiu o limite mensal de uso da IA. Renova no próximo mês.';
+        }
+      } else if (e.toString().contains('429') || e.toString().contains('limit_reached')) {
+        errorMsg = 'Limite temporário atingido. Aguarde um momento.';
       } else if (e.toString().contains('timeout') || e.toString().contains('Timeout')) {
         errorMsg = 'A identificação demorou demais. Tente com uma foto mais nítida.';
       }
