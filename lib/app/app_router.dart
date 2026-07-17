@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import '../core/platform/platform_url.dart';
 import '../features/auth/presentation/login_page.dart';
+import '../features/auth/presentation/verify_email_page.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/collection/presentation/collection_page.dart';
 import '../features/collection/presentation/shared_collection_page.dart';
@@ -38,6 +39,7 @@ final appRouter = GoRouter(
   },
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
+    GoRoute(path: '/verify-email', builder: (_, __) => const VerifyEmailPage()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingPage()),
     GoRoute(path: '/shared/:token', builder: (_, state) => SharedCollectionPage(token: state.pathParameters['token']!)),
     ShellRoute(

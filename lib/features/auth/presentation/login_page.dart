@@ -28,6 +28,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       if (next.isAuthenticated) {
         final currentPath = GoRouterState.of(context).uri.path;
         if (currentPath.startsWith('/shared/')) return;
+
+        // Check if email verification is needed
+        final requiresVerification = next.user?['requires_verification'] == true;
+        final emailVerified = next.user?['email_verified'] == true;
+        if (requiresVerification && !emailVerified) {
+          context.go('/verify-email');
+          return;
+        }
+
         final onboarded = next.user?['onboarding_completed'] == true;
         context.go(onboarded ? '/' : '/onboarding');
       }

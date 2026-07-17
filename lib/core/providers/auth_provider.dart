@@ -99,10 +99,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         response.data['refresh_token'],
       );
 
+      final user = response.data['user'] as Map<String, dynamic>;
+      final requiresVerification = response.data['requires_verification'] == true;
+      user['requires_verification'] = requiresVerification;
+
       state = AuthState(
         isAuthenticated: true,
         isLoading: false,
-        user: response.data['user'],
+        user: user,
       );
     } catch (e) {
       String msg = 'Erro ao criar conta. Verifique os dados.';
@@ -161,6 +165,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'Erro Google: ${e.toString().substring(0, e.toString().length.clamp(0, 100))}');
     }
+  }
+
+  void updateUser(Map<String, dynamic> user) {
+    state = state.copyWith(user: user);
   }
 
   Future<void> logout() async {
