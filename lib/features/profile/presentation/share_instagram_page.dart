@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../app/theme/olfato_tokens.dart';
 import '../../../core/network/api_client.dart';
-import 'share_collection_card.dart';
 
 class ShareInstagramPage extends StatefulWidget {
   const ShareInstagramPage({super.key});
@@ -17,97 +17,55 @@ class ShareInstagramPage extends StatefulWidget {
 }
 
 class _ShareInstagramPageState extends State<ShareInstagramPage> {
-  final _cardKey = GlobalKey();
-  bool _loading = true;
+  bool _generating = true;
   bool _sharing = false;
-
-  String _userName = '';
-  int _totalPerfumes = 0;
-  int _totalDecants = 0;
-  int _totalAmostras = 0;
-  List<Map<String, String>> _topPerfumes = [];
-  List<String> _topFamilies = [];
+  String? _imageUrl;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _generateImage();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _generateImage() async {
     try {
-      final responses = await Future.wait([
-        ApiClient().dio.get('/user/profile'),
-        ApiClient().dio.get('/collection/stats'),
-        ApiClient().dio.get('/collection?sort=rating&dir=desc'),
-      ]);
-
-      final user = responses[0].data as Map<String, dynamic>;
-      final stats = responses[1].data as Map<String, dynamic>;
-      final collection = responses[2].data as Map<String, dynamic>;
-      final items = (collection['data'] as List?) ?? [];
-
-      // Extract top perfumes
-      final topP = items.take(5).map<Map<String, String>>((item) {
-        final p = item['perfume'] as Map<String, dynamic>? ?? {};
-        return {
-          'name': (p['name'] ?? '').toString(),
-          'brand': (p['brand'] ?? '').toString(),
-        };
-      }).toList();
-
-      // Extract families
-      final families = <String>{};
-      for (final item in items) {
-        final p = item['perfume'] as Map<String, dynamic>? ?? {};
-        final family = p['olfactory_family']?['name'] as String?;
-        if (family != null && family.isNotEmpty) families.add(family);
-      }
-
+      final response = await ApiClient().dio.get('/collection/share-image');
+      final url = response.data['image_url'] as String?;
       if (mounted) {
         setState(() {
-          _userName = user['name'] ?? '';
-          _totalPerfumes = stats['total'] ?? 0;
-          _totalDecants = stats['decants'] ?? 0;
-          _totalAmostras = stats['samples'] ?? 0;
-          _topPerfumes = topP;
-          _topFamilies = families.take(4).toList();
-          _loading = false;
+          _imageUrl = url;
+          _generating = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _generating = false;
+          _error = 'Não foi possível gerar a imagem. Tente novamente.';
+        });
+      }
     }
   }
 
-  Future<void> _shareToInstagram() async {
+  Future<void> _share() async {
+    if (_imageUrl == null) return;
     setState(() => _sharing = true);
-
-    // Wait for the card to render
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    final bytes = await captureCardAsImage(_cardKey);
-    if (bytes == null) {
-      if (mounted) {
-        setState(() => _sharing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao gerar imagem'), backgroundColor: OlfatoTokens.error),
-        );
-      }
-      return;
-    }
 
     try {
       if (kIsWeb) {
-        // Web: use share sheet with file data
-        await Share.shareXFiles([
-          XFile.fromData(bytes, mimeType: 'image/png', name: 'minha_colecao_perfumia.png'),
-        ], text: 'Minha coleção no PerfumIA 🧴✨');
+        // Web: open image in new tab or download
+        // ignore: avoid_web_libraries_in_flutter
+        await Share.share('Minha coleção no PerfumIA 🧴✨\nperfumia.com.br');
       } else {
-        // Mobile: save temp file and share
+        // Mobile: download image and share
+        final response = await Dio().get<List<int>>(
+          _imageUrl!,
+          options: Options(responseType: ResponseType.bytes),
+        );
         final dir = await getTemporaryDirectory();
         final file = File('${dir.path}/perfumia_collection.png');
-        await file.writeAsBytes(bytes);
+        await file.writeAsBytes(response.data!);
 
         await Share.shareXFiles(
           [XFile(file.path)],
@@ -138,69 +96,97 @@ class _ShareInstagramPageState extends State<ShareInstagramPage> {
         ),
         title: Text(
           'Compartilhar Coleção',
-          style: GoogleFonts.ebGaramond(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: OlfatoTokens.ink,
-          ),
+          style: GoogleFonts.ebGaramond(fontSize: 20, fontWeight: FontWeight.w700, color: OlfatoTokens.ink),
         ),
         centerTitle: true,
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: OlfatoTokens.plum))
-          : Column(
-              children: [
-                // Preview (scaled down)
-                Expanded(
-                  child: Center(
-                    child: FittedBox(
-                      child: CollectionShareCard(
-                        userName: _userName,
-                        totalPerfumes: _totalPerfumes,
-                        totalDecants: _totalDecants,
-                        totalAmostras: _totalAmostras,
-                        topPerfumes: _topPerfumes,
-                        topFamilies: _topFamilies,
-                        repaintKey: _cardKey,
-                      ),
+      body: _generating
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(color: OlfatoTokens.plum),
+                  const SizedBox(height: 24),
+                  Text('Gerando imagem com IA...', style: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.gray)),
+                  const SizedBox(height: 8),
+                  Text('Isso pode levar alguns segundos', style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray)),
+                ],
+              ),
+            )
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, size: 48, color: OlfatoTokens.gray.withValues(alpha: 0.5)),
+                        const SizedBox(height: 16),
+                        Text(_error!, style: GoogleFonts.inter(fontSize: 14, color: OlfatoTokens.gray), textAlign: TextAlign.center),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () { setState(() { _generating = true; _error = null; }); _generateImage(); },
+                          style: ElevatedButton.styleFrom(backgroundColor: OlfatoTokens.plum, foregroundColor: Colors.white),
+                          child: const Text('Tentar novamente'),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                // Actions
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _sharing ? null : _shareToInstagram,
-                          icon: _sharing
-                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.share, size: 18),
-                          label: Text(
-                            'Compartilhar nos Stories',
-                            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE1306C), // Instagram pink
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
+                )
+              : Column(
+                  children: [
+                    // Preview
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(
+                            _imageUrl!,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (_, child, progress) {
+                              if (progress == null) return child;
+                              return const Center(child: CircularProgressIndicator(color: OlfatoTokens.plum));
+                            },
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text('Erro ao carregar preview', style: GoogleFonts.inter(color: OlfatoTokens.gray)),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'A imagem será enviada para o Instagram Stories',
-                        style: GoogleFonts.inter(fontSize: 12, color: OlfatoTokens.gray),
+                    ),
+                    // Actions
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _sharing ? null : _share,
+                              icon: _sharing
+                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.share, size: 18),
+                              label: Text('Compartilhar', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFE1306C),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Imagem gerada com IA • Válida até o fim do mês',
+                            style: GoogleFonts.inter(fontSize: 11, color: OlfatoTokens.gray),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
     );
   }
 }
